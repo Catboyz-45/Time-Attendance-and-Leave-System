@@ -47,3 +47,11 @@
    ```bash
    docker-compose up -d
 3. เปิดใช้งานหน้าเว็บผ่านเบราว์เซอร์โดยเริ่มจากไฟล์ `index.html`
+
+---
+
+## 👥 สมาชิกผู้พัฒนา (Developers)
+* **Nuttaphat** ([@flame123-np](https://github.com/flame123-np))
+* **Bannawat** ([@flame123-np](https://github.com/flame123-np))
+
+*(หมายเหตุ: โปรเจกต์นี้เป็นส่วนหนึ่งของรายวิชาInternet Technology(02739241)ในภาคการศึกษา 2567 กลุ่มเรียน 820)*
