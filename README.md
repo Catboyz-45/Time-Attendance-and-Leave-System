@@ -51,7 +51,7 @@
 ---
 
 ## 👥 สมาชิกผู้พัฒนา (Developers)
-* **Nuttaphat** ([@flame123-np](https://github.com/flame123-np))
+* **Nuttaphat** ([@Catboyz-45](https://github.com/Catboyz-45))
 * **Bannawat** ([@flame123-np](https://github.com/flame123-np))
 
 *(หมายเหตุ: โปรเจกต์นี้เป็นส่วนหนึ่งของรายวิชาInternet Technology(02739241)ในภาคการศึกษา 2567 กลุ่มเรียน 820)*
