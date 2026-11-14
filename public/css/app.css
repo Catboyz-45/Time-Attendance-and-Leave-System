@@ -1441,3 +1441,431 @@ table.data .small {
         max-width: none;
     }
 }
+
+/* ===================== ตัวเลือกวันที่ เวลา เดือน และดรอปดาวน์ (js/pickers.js) ===================== */
+
+.picker {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+
+/* ช่องเดิมยังอยู่ในฟอร์มเพื่อเก็บค่า แต่ซ่อนไว้ */
+.picker .picker-native {
+    position: absolute !important;
+    left: 0;
+    bottom: 0;
+    width: 1px !important;
+    height: 1px !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.picker-field {
+    position: relative;
+}
+
+.picker-field .picker-text {
+    padding-right: 46px;
+    font-variant-numeric: tabular-nums;
+}
+
+.picker-text[aria-invalid='true'] {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.15);
+}
+
+.picker-icon {
+    position: absolute;
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 34px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+}
+
+.picker-icon:hover {
+    background-color: var(--hover);
+    color: var(--primary);
+}
+
+.picker-icon:disabled {
+    cursor: default;
+    background: none;
+    color: #a3abb7;
+}
+
+/* ปุ่มที่หน้าตาเหมือนช่องกรอก (ดรอปดาวน์, เลือกเดือน) */
+.picker-select {
+    width: 100%;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background-color: #fff;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.picker-select:hover {
+    border-color: #b9c0ca;
+}
+
+.picker-select:focus-visible,
+.picker-select.is-open {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--focus);
+}
+
+.picker-select:disabled {
+    background-color: var(--surface-muted);
+    color: var(--muted);
+    cursor: default;
+}
+
+.picker-select-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.picker-select.is-placeholder .picker-select-label {
+    color: #8a93a1;
+}
+
+.picker-select svg {
+    flex: none;
+    color: var(--muted);
+    transition: transform 0.15s;
+}
+
+.picker-select.is-open .picker-chevron {
+    transform: rotate(180deg);
+}
+
+/* กล่องลอย */
+.picker-pop {
+    position: fixed;
+    z-index: 1000;
+    max-width: calc(100vw - 16px);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-pop);
+    padding: 12px;
+    font-size: 14px;
+    color: var(--text);
+    animation: picker-in 0.12s ease-out;
+}
+
+@keyframes picker-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .picker-pop {
+        animation: none;
+    }
+}
+
+.picker-pop button {
+    font: inherit;
+    color: inherit;
+}
+
+.picker-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.picker-nav {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background-color: var(--surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+}
+
+.picker-nav:hover {
+    background-color: var(--hover);
+}
+
+.picker-title {
+    border: none;
+    background: none;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.picker-title:hover {
+    background-color: var(--hover);
+}
+
+.picker-title.is-static {
+    cursor: default;
+}
+
+.picker-weekdays,
+.picker-days {
+    display: grid;
+    grid-template-columns: repeat(7, 38px);
+    gap: 2px;
+}
+
+.picker-weekdays span {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    padding: 4px 0;
+}
+
+.picker-weekdays .is-weekend {
+    color: var(--danger);
+}
+
+.picker-day,
+.picker-month {
+    height: 38px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: none;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+    padding: 0;
+}
+
+.picker-day:hover,
+.picker-month:hover {
+    background-color: var(--hover);
+}
+
+.picker-day.is-weekend {
+    color: var(--muted);
+}
+
+.picker-day.is-outside {
+    color: #a3abb7;
+}
+
+.picker-day.is-today,
+.picker-month.is-today {
+    box-shadow: inset 0 0 0 1.5px var(--primary);
+    color: var(--primary-ink);
+    font-weight: 600;
+}
+
+.picker-day.is-selected,
+.picker-month.is-selected,
+.picker-day.is-selected:hover,
+.picker-month.is-selected:hover {
+    background-color: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: none;
+}
+
+.picker-day:disabled,
+.picker-month:disabled {
+    color: #c3c8d0;
+    cursor: not-allowed;
+    background: none;
+}
+
+.picker-months {
+    display: grid;
+    grid-template-columns: repeat(3, 76px);
+    gap: 4px;
+}
+
+.picker-month {
+    height: 42px;
+}
+
+.picker-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    border-top: 1px solid var(--row-line);
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+.picker-foot.is-end {
+    justify-content: flex-end;
+}
+
+.picker-link {
+    border: none;
+    background: none;
+    color: var(--primary) !important;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.picker-link.muted {
+    color: var(--muted) !important;
+    font-weight: 400;
+}
+
+.picker-link:hover {
+    background-color: var(--hover);
+}
+
+/* เวลา: คอลัมน์ชั่วโมง / นาที */
+.picker-time {
+    width: 200px;
+    padding: 10px;
+}
+
+.picker-time-cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.picker-time-label {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    padding-bottom: 4px;
+}
+
+.picker-time-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    height: 220px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    position: relative;
+}
+
+.picker-time-list button {
+    flex: none;
+    height: 34px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: none;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+}
+
+.picker-time-list button:hover {
+    background-color: var(--hover);
+}
+
+.picker-time-list button.is-selected {
+    background-color: var(--primary);
+    color: #fff;
+    font-weight: 600;
+}
+
+/* รายการตัวเลือก */
+.picker-listbox {
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.picker-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+}
+
+.picker-search:focus-within {
+    border-color: var(--primary);
+    box-shadow: var(--focus);
+}
+
+.picker-search input[type='text'] {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    min-height: 38px;
+    background: none;
+}
+
+.picker-search input[type='text']:focus {
+    box-shadow: none;
+}
+
+.picker-listbox ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 280px;
+    overflow-y: auto;
+    outline: none;
+    scrollbar-width: thin;
+}
+
+.picker-listbox li[role='option'] {
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    line-height: 1.4;
+    font-size: 14.5px;
+}
+
+.picker-listbox li.is-active {
+    background-color: var(--hover);
+}
+
+.picker-listbox li.is-selected {
+    background-color: var(--primary-soft);
+    color: var(--primary-ink);
+    font-weight: 500;
+}
+
+.picker-listbox li[aria-disabled='true'] {
+    color: #a3abb7;
+    cursor: not-allowed;
+}
+
+.picker-empty {
+    padding: 10px;
+    color: var(--muted);
+    text-align: center;
+}

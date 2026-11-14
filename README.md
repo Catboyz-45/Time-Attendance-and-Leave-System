@@ -224,6 +224,7 @@ cd server && TEST_USERNAME=admin TEST_PASSWORD=<รหัสผ่าน> npm te
 │   ├── *.html              # login, ภาพรวม, ลงเวลา, การลา, ประวัติ, พนักงาน, รายงาน, นำเข้า, ตั้งค่า, audit, พิมพ์ใบลา
 │   ├── css/app.css
 │   ├── js/common.js        # เรียก API, เมนู, ฟังก์ชันที่ใช้ร่วมกัน
+│   ├── js/pickers.js       # ตัวเลือกวันที่ (พ.ศ.) เดือน เวลา 24 ชม. และดรอปดาวน์ที่ค้นหาได้
 │   ├── js/<หน้า>.js
 │   └── fonts/              # Noto Sans Thai (SIL Open Font License)
 ├── server/
