@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เข้าสู่ระบบ · ระบบลงเวลาและการลา</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="login-page">
+    <main class="login-card">
+        <h1>ระบบลงเวลาและการลา</h1>
+        <p class="muted">สำหรับเจ้าหน้าที่ฝ่ายบุคคล</p>
+
+        <form id="login-form" novalidate>
+            <div id="page-message" class="message" role="alert"></div>
+            <div class="field">
+                <label for="username">ชื่อผู้ใช้</label>
+                <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+            </div>
+            <div class="field">
+                <label for="password">รหัสผ่าน</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn" id="login-btn">เข้าสู่ระบบ</button>
+        </form>
+    </main>
+
+    <script src="js/common.js"></script>
+    <script src="js/login.js"></script>
+</body>
+</html>

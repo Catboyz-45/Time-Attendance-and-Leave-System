@@ -1,100 +1,265 @@
-// หน้าประวัติการทำงานและการลา: แสดงตาราง พร้อมปุ่มแก้ไข/ลบ
-// ต้องโหลด common.js ก่อนไฟล์นี้
+// หน้าประวัติ: แท็บการลงเวลา / การลา พร้อมตัวกรอง แบ่งหน้า export และปุ่มจัดการ
+// ทุกค่าจากฐานข้อมูลผ่าน escapeHtml ก่อนใส่ลง HTML
 
-// ตั้งค่าของแต่ละตาราง: path ของ API, หน้าที่ใช้แก้ไข, หัวตาราง และวิธีแสดงแต่ละแถว
-const TABLES = {
+const PAGE_SIZE = 50;
+const FILTER_KEYS = {
+    attendance: ['q', 'employee_id', 'department', 'from', 'to', 'late', 'missing_out'],
+    leave: ['q', 'employee_id', 'department', 'from', 'to', 'status', 'leave_type'],
+};
+
+const TABS = {
     attendance: {
+        title: 'ประวัติการลงเวลา',
         apiPath: '/attendance',
-        editPage: 'attendance.html',
-        containerId: 'attendance-table',
-        emptyText: 'ยังไม่มีข้อมูลการลงเวลา',
-        headers: ['ID', 'รหัสพนักงาน', 'วันที่', 'เวลาเข้างาน', 'เวลาออกงาน'],
-        cells: (record) => [
-            record.id,
-            record.employee_id,
-            formatThaiDate(record.date),
-            formatTime(record.time_in),
-            formatTime(record.time_out),
+        addHref: 'attendance.html',
+        addLabel: '+ ลงเวลา',
+        emptyText: 'ไม่พบข้อมูลการลงเวลา',
+        headers: ['วันที่', 'รหัส', 'ชื่อ-สกุล', 'แผนก', 'เข้างาน', 'ออกงาน', 'หมายเหตุ', ''],
+        row: (row) => `
+            <tr>
+                <td class="nowrap">${escapeHtml(formatThaiDate(row.date))}</td>
+                <td class="nowrap">${escapeHtml(row.employee_code)}</td>
+                <td>${escapeHtml(employeeName(row))}</td>
+                <td>${escapeHtml(row.department || '-')}</td>
+                <td class="nowrap">${escapeHtml(formatTime(row.time_in))} ${row.is_late ? '<span class="badge late">สาย</span>' : ''}</td>
+                <td class="nowrap">${row.time_out ? escapeHtml(formatTime(row.time_out)) : '<span class="badge pending">ยังไม่ลง</span>'}</td>
+                <td>${escapeHtml(row.note || '')} ${row.source === 'import' ? '<span class="badge">นำเข้า</span>' : ''}</td>
+                <td class="actions-cell">
+                    <a class="btn secondary sm" href="attendance.html?id=${encodeURIComponent(row.id)}">แก้ไข</a>
+                    <button type="button" class="btn danger sm" data-delete="${escapeHtml(row.id)}"
+                        data-label="${escapeHtml(`${employeeLabel(row)} วันที่ ${formatThaiDate(row.date)}`)}">ลบ</button>
+                </td>
+            </tr>`,
+        csvHeaders: ['วันที่', 'รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'แผนก', 'เวลาเข้างาน', 'เวลาออกงาน', 'มาสาย', 'หมายเหตุ', 'ที่มา'],
+        csvRow: (row) => [
+            row.date, row.employee_code, row.first_name, row.last_name, row.department || '',
+            formatTime(row.time_in), row.time_out ? formatTime(row.time_out) : '', row.is_late ? 'สาย' : '',
+            row.note || '', row.source === 'import' ? 'นำเข้า' : 'บันทึกเอง',
         ],
     },
     leave: {
+        title: 'ประวัติการลา',
         apiPath: '/leave_requests',
-        editPage: 'leave.html',
-        containerId: 'leave-table',
-        emptyText: 'ยังไม่มีข้อมูลการลา',
-        headers: ['ID', 'รหัสพนักงาน', 'วันที่เริ่มลา', 'วันที่สิ้นสุดลา', 'ประเภทการลา', 'เหตุผล'],
-        cells: (record) => [
-            record.id,
-            record.employee_id,
-            formatThaiDate(record.start_date),
-            formatThaiDate(record.end_date),
-            record.leave_type,
-            record.reason || '-',
+        addHref: 'leave.html',
+        addLabel: '+ บันทึกการลา',
+        emptyText: 'ไม่พบข้อมูลการลา',
+        headers: ['วันที่ลา', 'รหัส', 'ชื่อ-สกุล', 'แผนก', 'ประเภท', 'วัน', 'เหตุผล', 'สถานะ', ''],
+        row: (row) => `
+            <tr>
+                <td class="nowrap">${escapeHtml(formatDateRange(row.start_date, row.end_date))}</td>
+                <td class="nowrap">${escapeHtml(row.employee_code)}</td>
+                <td>${escapeHtml(employeeName(row))}</td>
+                <td>${escapeHtml(row.department || '-')}</td>
+                <td class="nowrap">${escapeHtml(row.leave_type)}${row.half_day ? ' (ครึ่งวัน)' : ''}</td>
+                <td class="num">${escapeHtml(formatDays(row.days))}</td>
+                <td><div class="reason">${escapeHtml(row.reason)}</div></td>
+                <td>
+                    ${statusBadge(row.status)}
+                    ${row.status_note ? `<div class="small muted">${escapeHtml(row.status_note)}</div>` : ''}
+                </td>
+                <td class="actions-cell">
+                    ${row.status === 'pending' ? `
+                        <button type="button" class="btn success sm" data-status="approved" data-id="${escapeHtml(row.id)}">อนุมัติ</button>
+                        <button type="button" class="btn secondary sm" data-status="rejected" data-id="${escapeHtml(row.id)}">ไม่อนุมัติ</button>` : ''}
+                    <a class="btn secondary sm" href="leave.html?id=${encodeURIComponent(row.id)}">แก้ไข</a>
+                    <button type="button" class="btn danger sm" data-delete="${escapeHtml(row.id)}"
+                        data-label="${escapeHtml(`${employeeLabel(row)} (${formatDateRange(row.start_date, row.end_date)})`)}">ลบ</button>
+                </td>
+            </tr>`,
+        csvHeaders: ['วันที่เริ่มลา', 'วันที่สิ้นสุดลา', 'รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'แผนก', 'ประเภทการลา', 'ครึ่งวัน', 'จำนวนวัน', 'เหตุผล', 'สถานะ', 'หมายเหตุการอนุมัติ', 'ผู้อนุมัติ'],
+        csvRow: (row) => [
+            row.start_date, row.end_date, row.employee_code, row.first_name, row.last_name, row.department || '',
+            row.leave_type, row.half_day ? 'ใช่' : '', row.days, row.reason, LEAVE_STATUS_LABELS[row.status],
+            row.status_note || '', row.decided_by_name || '',
         ],
     },
 };
 
-// โหลดข้อมูลจาก API แล้วสร้างตาราง (ทุกค่าจากฐานข้อมูลผ่าน escapeHtml ก่อนใส่ลง HTML)
-const loadData = async (type) => {
-    const config = TABLES[type];
-    const container = document.getElementById(config.containerId);
+// แท็บปัจจุบันมาจาก URL (?tab=leave) เพื่อให้เมนูด้านบนไฮไลต์ถูกอัน
+let currentTab = getParam('tab') === 'leave' ? 'leave' : 'attendance';
+let currentPage = 1;
+document.body.dataset.page = currentTab;
 
-    let records;
-    try {
-        records = await api(config.apiPath);
-    } catch (error) {
-        container.innerHTML = `<p class="table-message error">โหลดข้อมูลไม่สำเร็จ: ${escapeHtml(error.message)}</p>`;
-        return;
-    }
+const filterForm = () => document.getElementById('filters');
 
-    if (records.length === 0) {
-        container.innerHTML = `<p class="table-message">${escapeHtml(config.emptyText)}</p>`;
-        return;
-    }
-
-    const headerHtml = [...config.headers, 'จัดการ'].map((header) => `<th>${escapeHtml(header)}</th>`).join('');
-    const rowsHtml = records.map((record) => {
-        const cellsHtml = config.cells(record).map((value) => `<td>${escapeHtml(value)}</td>`).join('');
-        const id = encodeURIComponent(record.id);
-        return `
-            <tr>
-                ${cellsHtml}
-                <td class="actions">
-                    <a class="Edit" href="${config.editPage}?id=${id}">แก้ไข</a>
-                    <button type="button" class="delete" data-id="${escapeHtml(record.id)}" data-type="${type}">ลบ</button>
-                </td>
-            </tr>`;
-    }).join('');
-
-    container.innerHTML = `
-        <div class="table-wrap">
-            <table>
-                <thead><tr>${headerHtml}</tr></thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-        </div>`;
+// อ่านตัวกรองจากฟอร์ม (เฉพาะที่ใช้กับแท็บนี้)
+const currentFilters = () => {
+    const values = formValues(filterForm());
+    const filters = {};
+    FILTER_KEYS[currentTab].forEach((key) => {
+        const value = values[key];
+        if (value === true) filters[key] = 1;
+        else if (value) filters[key] = value;
+    });
+    return filters;
 };
 
-// ผูก event ปุ่มลบครั้งเดียวที่ระดับ document (event delegation)
-// แบบเดิมผูกซ้ำทุกครั้งที่โหลดตาราง ทำให้กดครั้งเดียวแต่ส่งคำขอลบหลายครั้ง
-document.addEventListener('click', async (event) => {
-    const button = event.target.closest('button.delete');
-    if (!button) return;
+// เก็บตัวกรองไว้ใน URL เพื่อกดย้อนกลับ/แชร์ลิงก์ได้
+const syncUrl = () => {
+    const query = buildQuery({ tab: currentTab, ...currentFilters(), page: currentPage > 1 ? currentPage : '' });
+    window.history.replaceState(null, '', `history.html${query}`);
+};
 
-    const { id, type } = button.dataset;
-    if (!window.confirm(`ต้องการลบรายการ ID ${id} ใช่หรือไม่?`)) return;
+const applyTabUi = () => {
+    const tab = TABS[currentTab];
+    document.body.dataset.page = currentTab;
+    document.getElementById('page-title').textContent = tab.title;
+    document.title = `${tab.title} · ระบบลงเวลาและการลา`;
+    const addButton = document.getElementById('add-btn');
+    addButton.href = tab.addHref;
+    addButton.textContent = tab.addLabel;
+    document.querySelectorAll('.tabs button').forEach((button) => {
+        button.classList.toggle('active', button.dataset.tab === currentTab);
+    });
+    document.querySelectorAll('[data-for]').forEach((element) => {
+        element.classList.toggle('hidden', element.dataset.for !== currentTab);
+    });
+    document.querySelectorAll('.nav a').forEach((link) => {
+        link.classList.toggle('active', link.getAttribute('href') === `history.html?tab=${currentTab}`);
+    });
+};
 
-    button.disabled = true;
+const loadTable = async () => {
+    const tab = TABS[currentTab];
+    const container = document.getElementById('table');
+    const pagination = document.getElementById('pagination');
+    syncUrl();
+
+    let data;
     try {
-        await api(`${TABLES[type].apiPath}/${encodeURIComponent(id)}`, { method: 'DELETE' });
-        await loadData(type);
+        data = await api(tab.apiPath, { query: { ...currentFilters(), page: currentPage, page_size: PAGE_SIZE } });
     } catch (error) {
-        window.alert(`ลบข้อมูลไม่สำเร็จ: ${error.message}`);
-        button.disabled = false;
+        setTableMessage(container, `โหลดข้อมูลไม่สำเร็จ: ${error.message}`, true);
+        pagination.innerHTML = '';
+        return;
     }
-});
 
-window.addEventListener('DOMContentLoaded', () => {
-    loadData('attendance');
-    loadData('leave');
+    if (data.items.length === 0) {
+        setTableMessage(container, tab.emptyText);
+    } else {
+        container.innerHTML = `
+            <div class="table-wrap">
+                <table class="data">
+                    <thead><tr>${tab.headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
+                    <tbody>${data.items.map(tab.row).join('')}</tbody>
+                </table>
+            </div>`;
+    }
+    renderPagination(pagination, data, (page) => {
+        currentPage = page;
+        loadTable();
+    });
+};
+
+const reload = () => {
+    currentPage = 1;
+    loadTable();
+};
+
+// export ทุกหน้าตามตัวกรองปัจจุบัน
+const exportCsv = async (button) => {
+    const tab = TABS[currentTab];
+    await withBusy(button, async () => {
+        try {
+            const data = await api(tab.apiPath, { query: { ...currentFilters(), page: 1, page_size: 5000 } });
+            if (data.total > data.items.length) {
+                showPageMessage('warning', `ข้อมูลมี ${data.total} รายการ export ได้ครั้งละ 5000 รายการ กรุณาเลือกช่วงวันที่ให้แคบลง`);
+            }
+            const filters = currentFilters();
+            const range = filters.from || filters.to ? `_${filters.from || ''}_${filters.to || ''}` : '';
+            downloadCsv(
+                `${currentTab === 'leave' ? 'leave' : 'attendance'}${range}.csv`,
+                [tab.csvHeaders, ...data.items.map(tab.csvRow)],
+            );
+        } catch (error) {
+            showError(error);
+        }
+    });
+};
+
+onAppReady(async () => {
+    const form = filterForm();
+    fillOptions(form.elements.leave_type, LEAVE_TYPES.map((type) => [type, type]), 'ทุกประเภท');
+    const [employees] = await Promise.all([loadEmployees(), fillDepartmentSelect(form.elements.department)]);
+    fillEmployeeSelect(form.elements.employee_id, employees, { placeholder: 'ทุกคน', includeInactive: true });
+
+    // ตัวกรองเริ่มต้นจาก URL
+    const params = new URLSearchParams(window.location.search);
+    setFormValues(form, {
+        q: params.get('q') || '',
+        employee_id: params.get('employee_id') || '',
+        department: params.get('department') || '',
+        from: params.get('from') || '',
+        to: params.get('to') || '',
+        status: params.get('status') || '',
+        leave_type: params.get('leave_type') || '',
+        late: params.get('late') === '1',
+        missing_out: params.get('missing_out') === '1',
+    });
+    currentPage = Number(params.get('page')) || 1;
+
+    applyTabUi();
+    await loadTable();
+
+    form.addEventListener('change', reload);
+    form.elements.q.addEventListener('input', debounce(reload, 350));
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        reload();
+    });
+    document.getElementById('clear-btn').addEventListener('click', () => {
+        form.reset();
+        reload();
+    });
+
+    document.querySelectorAll('.tabs button').forEach((button) => {
+        button.addEventListener('click', () => {
+            if (button.dataset.tab === currentTab) return;
+            currentTab = button.dataset.tab;
+            applyTabUi();
+            reload();
+        });
+    });
+
+    document.getElementById('export-btn').addEventListener('click', (event) => exportCsv(event.currentTarget));
+
+    // ปุ่มในตาราง (ผูกครั้งเดียวที่ตัวตาราง)
+    document.getElementById('table').addEventListener('click', async (event) => {
+        const deleteButton = event.target.closest('button[data-delete]');
+        const statusButton = event.target.closest('button[data-status]');
+
+        if (deleteButton) {
+            if (!window.confirm(`ลบรายการ ${deleteButton.dataset.label} ใช่หรือไม่?`)) return;
+            await withBusy(deleteButton, async () => {
+                try {
+                    const result = await api(`${TABS[currentTab].apiPath}/${deleteButton.dataset.delete}`, { method: 'DELETE' });
+                    showPageMessage('success', result.message);
+                    await loadTable();
+                } catch (error) {
+                    showError(error);
+                }
+            });
+        }
+
+        if (statusButton) {
+            const approve = statusButton.dataset.status === 'approved';
+            const note = window.prompt(approve ? 'หมายเหตุการอนุมัติ (ไม่บังคับ)' : 'เหตุผลที่ไม่อนุมัติ (ไม่บังคับ)', '');
+            if (note === null) return;
+            await withBusy(statusButton, async () => {
+                try {
+                    const result = await api(`/leave_requests/${statusButton.dataset.id}/status`, {
+                        method: 'PATCH', body: { status: statusButton.dataset.status, status_note: note },
+                    });
+                    if (result.warnings && result.warnings.length > 0) {
+                        showPageMessage('warning', 'บันทึกแล้ว แต่มีข้อควรระวัง', result.warnings);
+                    } else {
+                        showPageMessage('success', result.message);
+                    }
+                    await loadTable();
+                } catch (error) {
+                    showError(error);
+                }
+            });
+        }
+    });
 });

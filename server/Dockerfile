@@ -7,8 +7,13 @@ COPY server/package.json server/package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY server/server.js ./
+COPY server/src ./src
 COPY public/ /app/public/
 
 ENV NODE_ENV=production
 EXPOSE 3000
+
+# ไม่รันด้วย root
+USER node
+
 CMD ["node", "server.js"]

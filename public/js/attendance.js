@@ -1,88 +1,84 @@
-// หน้าลงเวลาทำงาน: ใช้ได้ทั้งเพิ่มข้อมูลใหม่ และแก้ไข (เมื่อ URL มี ?id=...)
-// ต้องโหลด common.js ก่อนไฟล์นี้
+// หน้าฟอร์มลงเวลา: เพิ่มใหม่ หรือแก้ไขเมื่อ URL มี ?id=...
 
-let mode = 'CREATE';
-let selectId = '';
-
-const fields = () => ({
-    employee_id: document.querySelector('input[name=employee_id]'),
-    date: document.querySelector('input[name=date]'),
-    time_in: document.querySelector('input[name=time_in]'),
-    time_out: document.querySelector('input[name=time_out]'),
-});
-
-// ตรวจสอบข้อมูลฝั่งหน้าเว็บก่อนส่ง (เซิร์ฟเวอร์ตรวจซ้ำอีกครั้ง)
-const validateData = (data) => {
+const validateAttendance = (data) => {
     const errors = [];
-    if (!data.employee_id) errors.push('กรุณากรอกรหัสพนักงาน');
-    else if (!/^\d+$/.test(data.employee_id)) errors.push('รหัสพนักงานต้องเป็นตัวเลขเท่านั้น');
+    if (!data.employee_id) errors.push('กรุณาเลือกพนักงาน');
     if (!data.date) errors.push('กรุณากรอกวันที่');
+    else if (data.date > todayStr()) errors.push('วันที่ต้องไม่เกินวันนี้');
     if (!data.time_in) errors.push('กรุณากรอกเวลาเข้างาน');
-    if (data.time_in && data.time_out && data.time_out <= data.time_in) {
-        errors.push('เวลาออกงานต้องอยู่หลังเวลาเข้างาน');
-    }
+    if (data.time_in && data.time_out && data.time_out <= data.time_in) errors.push('เวลาออกงานต้องอยู่หลังเวลาเข้างาน');
     return errors;
 };
 
-document.addEventListener('DOMContentLoaded', async () => {
-    const id = getIdFromUrl();
-    const messageDom = document.getElementById('message');
+onAppReady(async () => {
+    const form = document.getElementById('attendance-form');
+    const messageDom = document.getElementById('page-message');
+    const id = getParam('id');
+
+    form.elements.date.max = todayStr();
+    const employees = await loadEmployees();
 
     if (id) {
-        mode = 'EDIT';
-        selectId = id;
-        document.getElementById('page-title').textContent = 'แก้ไขข้อมูลการลงเวลา';
-        document.getElementById('submitBtn').textContent = 'บันทึกการแก้ไข';
+        document.getElementById('page-title').textContent = 'แก้ไขการลงเวลา';
+        document.getElementById('submit-btn').textContent = 'บันทึกการแก้ไข';
+        const deleteButton = document.getElementById('delete-btn');
+        deleteButton.classList.remove('hidden');
 
-        try {
-            const attendance = await api(`/attendance/${encodeURIComponent(id)}`);
-            const dom = fields();
-            dom.employee_id.value = attendance.employee_id;
-            dom.date.value = attendance.date; // เซิร์ฟเวอร์ส่งมาเป็น 'YYYY-MM-DD' ใช้กับ input type="date" ได้ทันที
-            dom.time_in.value = formatTime(attendance.time_in);
-            dom.time_out.value = attendance.time_out ? formatTime(attendance.time_out) : '';
-        } catch (error) {
-            showMessage(messageDom, 'danger', `โหลดข้อมูลไม่สำเร็จ: ${error.message}`);
-        }
+        const record = await api(`/attendance/${encodeURIComponent(id)}`);
+        fillEmployeeSelect(form.elements.employee_id, employees, { selected: record.employee_id });
+        setFormValues(form, {
+            date: record.date,
+            time_in: formatTime(record.time_in),
+            time_out: record.time_out ? formatTime(record.time_out) : '',
+            note: record.note,
+        });
+
+        deleteButton.addEventListener('click', async () => {
+            if (!window.confirm(`ลบการลงเวลาของ ${employeeLabel(record)} วันที่ ${formatThaiDate(record.date)} ใช่หรือไม่?`)) return;
+            await withBusy(deleteButton, async () => {
+                try {
+                    await api(`/attendance/${encodeURIComponent(id)}`, { method: 'DELETE' });
+                    setFlash('success', 'ลบข้อมูลการลงเวลาเรียบร้อย');
+                    window.location.href = 'history.html?tab=attendance';
+                } catch (error) {
+                    showError(error);
+                }
+            });
+        });
+    } else {
+        fillEmployeeSelect(form.elements.employee_id, employees, { selected: getParam('employee_id') || '' });
+        form.elements.date.value = getParam('date') || todayStr();
     }
 
-    document.getElementById('submitBtn').addEventListener('click', submitData);
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const data = formValues(form);
+        const errors = validateAttendance(data);
+        if (errors.length > 0) {
+            showMessage(messageDom, 'danger', 'กรุณากรอกข้อมูลให้ถูกต้องและครบถ้วน', errors);
+            return;
+        }
+
+        await withBusy(document.getElementById('submit-btn'), async () => {
+            try {
+                if (id) {
+                    await api(`/attendance/${encodeURIComponent(id)}`, { method: 'PUT', body: data });
+                    setFlash('success', 'แก้ไขข้อมูลการลงเวลาเรียบร้อย');
+                    window.location.href = 'history.html?tab=attendance';
+                    return;
+                }
+                await api('/attendance', { method: 'POST', body: data });
+                const employee = employees.find((row) => String(row.id) === data.employee_id);
+                showMessage(messageDom, 'success', `บันทึกการลงเวลาของ ${employee ? employeeLabel(employee) : ''} เรียบร้อย`);
+                // พร้อมกรอกคนถัดไป (เก็บวันที่ไว้)
+                form.elements.employee_id.value = '';
+                form.elements.time_in.value = '';
+                form.elements.time_out.value = '';
+                form.elements.note.value = '';
+                form.elements.employee_id.focus();
+            } catch (error) {
+                showError(error, messageDom);
+            }
+        });
+    });
 });
-
-const submitData = async () => {
-    const dom = fields();
-    const messageDom = document.getElementById('message');
-    const button = document.getElementById('submitBtn');
-
-    const attendanceData = {
-        employee_id: dom.employee_id.value.trim(),
-        date: dom.date.value,
-        time_in: dom.time_in.value,
-        time_out: dom.time_out.value,
-    };
-
-    const errors = validateData(attendanceData);
-    if (errors.length > 0) {
-        showMessage(messageDom, 'danger', 'กรุณากรอกข้อมูลให้ถูกต้องและครบถ้วน', errors);
-        return;
-    }
-
-    button.disabled = true;
-    try {
-        if (mode === 'CREATE') {
-            await api('/attendance', { method: 'POST', body: attendanceData });
-            showMessage(messageDom, 'success', 'บันทึกข้อมูลการเข้าออกเรียบร้อย');
-            // ล้างฟอร์ม (เก็บรหัสพนักงานไว้ เผื่อกรอกต่อ)
-            dom.date.value = '';
-            dom.time_in.value = '';
-            dom.time_out.value = '';
-        } else {
-            await api(`/attendance/${encodeURIComponent(selectId)}`, { method: 'PUT', body: attendanceData });
-            showMessage(messageDom, 'success', 'แก้ไขข้อมูลการเข้าออกเรียบร้อย');
-        }
-    } catch (error) {
-        showMessage(messageDom, 'danger', `เกิดข้อผิดพลาด: ${error.message}`, error.errors);
-    } finally {
-        button.disabled = false;
-    }
-};

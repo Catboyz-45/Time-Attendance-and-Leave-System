@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>นำเข้าข้อมูล · ระบบลงเวลาและการลา</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body data-page="import" class="app-loading">
+    <header id="app-header"></header>
+
+    <main class="container">
+        <div class="page-head">
+            <div>
+                <h1>นำเข้าการลงเวลาจากไฟล์</h1>
+                <div class="subtitle">รองรับไฟล์ CSV ที่ export จากเครื่องสแกนนิ้วหรือ Excel (บันทึกเป็น CSV)</div>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn secondary" id="template-btn">ดาวน์โหลดไฟล์ตัวอย่าง</button>
+            </div>
+        </div>
+
+        <div id="page-message" class="message" role="status"></div>
+
+        <section class="card">
+            <h2>1. เลือกไฟล์</h2>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="file">ไฟล์ CSV</label>
+                    <input id="file" type="file" accept=".csv,.txt,text/csv,text/plain">
+                    <span class="hint">รองรับทั้งแบบ 1 แถวต่อวัน (รหัส, วันที่, เวลาเข้า, เวลาออก) และแบบ 1 แถวต่อการสแกน 1 ครั้ง — ระบบจะใช้เวลาแรกเป็นเวลาเข้า และเวลาสุดท้ายเป็นเวลาออก</span>
+                </div>
+                <div class="field">
+                    <span class="label">วิธีอ่านไฟล์</span>
+                    <label class="checkbox"><input type="checkbox" id="has-header" checked> แถวแรกเป็นหัวตาราง</label>
+                    <label for="date-format" class="small muted">รูปแบบวันที่แบบมีเครื่องหมาย /</label>
+                    <select id="date-format">
+                        <option value="dmy">วัน/เดือน/ปี (เช่น 02/04/2568 หรือ 02/04/2025)</option>
+                        <option value="mdy">เดือน/วัน/ปี (เช่น 04/02/2025)</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="card hidden" id="mapping-card">
+            <h2>2. เลือกคอลัมน์</h2>
+            <p class="small muted" id="file-info"></p>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="col-code">รหัสพนักงาน</label>
+                    <select id="col-code" data-col></select>
+                </div>
+                <div class="field">
+                    <label for="col-date">วันที่ (หรือวันที่+เวลา)</label>
+                    <select id="col-date" data-col></select>
+                </div>
+                <div class="field">
+                    <label for="col-in">เวลาเข้า / เวลาที่สแกน</label>
+                    <select id="col-in" data-col></select>
+                    <span class="hint">ไม่ต้องเลือก ถ้าคอลัมน์วันที่มีเวลาอยู่ด้วย</span>
+                </div>
+                <div class="field">
+                    <label for="col-out">เวลาออก</label>
+                    <select id="col-out" data-col></select>
+                    <span class="hint">ไม่ต้องเลือก ถ้าไฟล์เป็นแบบ 1 แถวต่อการสแกน</span>
+                </div>
+            </div>
+            <h3 class="small muted" style="margin-top:16px">ตัวอย่างข้อมูลในไฟล์ (5 แถวแรก)</h3>
+            <div id="raw-preview"></div>
+            <div class="form-actions">
+                <button type="button" class="btn" id="check-btn">ตรวจสอบข้อมูล</button>
+            </div>
+        </section>
+
+        <section class="card hidden" id="result-card">
+            <div class="card-head">
+                <h2>3. ตรวจสอบและนำเข้า</h2>
+                <button type="button" class="btn success" id="import-btn">นำเข้าข้อมูล</button>
+            </div>
+            <div id="summary" class="message"></div>
+            <div class="filters">
+                <div class="field">
+                    <label for="result-filter">แสดง</label>
+                    <select id="result-filter">
+                        <option value="">ทุกรายการ</option>
+                        <option value="error">เฉพาะที่ผิดพลาด</option>
+                        <option value="create">เฉพาะรายการใหม่</option>
+                        <option value="update">เฉพาะรายการที่อัปเดต</option>
+                    </select>
+                </div>
+            </div>
+            <div id="results"></div>
+        </section>
+    </main>
+
+    <script src="js/common.js"></script>
+    <script src="js/import.js"></script>
+</body>
+</html>

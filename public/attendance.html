@@ -3,55 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบลงเวลา</title>
-    <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/form.css">
+    <title>ลงเวลา · ระบบลงเวลาและการลา</title>
+    <link rel="stylesheet" href="css/app.css">
 </head>
-<body>
-    <header>
-        <nav>
-            <ul>
-                <li><a href="index.html">หน้าหลัก</a></li>
-                <li><a href="attendance.html">ลงเวลางาน</a></li>
-                <li><a href="leave.html">คำร้องขอลางาน</a></li>
-                <li><a href="history.html">ประวัติการทำงานและการลา</a></li>
-            </ul>
-        </nav>
-    </header>
+<body data-page="attendance" class="app-loading">
+    <header id="app-header"></header>
 
-    <main>
-        <section>
-            <div class="header-form">
-                <h1 id="page-title">ระบบลงเวลาทำงาน</h1>
-                <div class="form-input">
-                    <label for="employee_id">รหัสพนักงาน:</label>
-                    <input id="employee_id" name="employee_id" type="text" inputmode="numeric" placeholder="กรอกรหัสพนักงาน (ตัวเลข)">
+    <main class="container narrow">
+        <div class="page-head">
+            <div>
+                <h1 id="page-title">ลงเวลาทำงาน</h1>
+                <div class="subtitle">บันทึกเวลาเข้า-ออกงานแทนพนักงาน</div>
+            </div>
+            <div class="actions">
+                <a class="btn secondary" href="history.html?tab=attendance">กลับไปหน้ารายการ</a>
+            </div>
+        </div>
+
+        <div id="page-message" class="message" role="status"></div>
+
+        <form id="attendance-form" class="card" novalidate>
+            <div class="form-grid">
+                <div class="field full">
+                    <label for="employee_id">พนักงาน</label>
+                    <select id="employee_id" name="employee_id" required></select>
                 </div>
-                <div class="form-input">
-                    <label for="date">วันที่:</label>
-                    <input id="date" name="date" type="date">
+                <div class="field">
+                    <label for="date">วันที่</label>
+                    <input id="date" name="date" type="date" required>
                 </div>
-                <div class="form-input">
-                    <label for="time_in">เวลาเข้างาน:</label>
-                    <input id="time_in" name="time_in" type="time">
+                <div class="field"></div>
+                <div class="field">
+                    <label for="time_in">เวลาเข้างาน</label>
+                    <input id="time_in" name="time_in" type="time" required>
                 </div>
-                <div class="form-input">
-                    <label for="time_out">เวลาออกงาน: <span class="optional">(ไม่บังคับ เพิ่มทีหลังได้จากหน้าประวัติ)</span></label>
+                <div class="field">
+                    <label for="time_out">เวลาออกงาน</label>
                     <input id="time_out" name="time_out" type="time">
+                    <span class="hint">ไม่บังคับ เพิ่มทีหลังได้</span>
                 </div>
-
-                <div id="message" class="message" role="status"></div>
-
-                <div class="center">
-                    <button type="button" id="submitBtn">ส่งข้อมูล</button>
+                <div class="field full">
+                    <label for="note">หมายเหตุ</label>
+                    <input id="note" name="note" type="text" maxlength="255" placeholder="เช่น ลืมสแกนนิ้ว, ไปพบลูกค้า">
                 </div>
             </div>
-        </section>
-    </main>
 
-    <footer>
-        <p>ระบบการจัดการลงเวลาและการลา</p>
-    </footer>
+            <div class="form-actions">
+                <button type="button" class="btn danger hidden" id="delete-btn">ลบรายการนี้</button>
+                <button type="submit" class="btn" id="submit-btn">บันทึก</button>
+            </div>
+        </form>
+    </main>
 
     <script src="js/common.js"></script>
     <script src="js/attendance.js"></script>

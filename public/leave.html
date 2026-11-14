@@ -3,64 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบการลา</title>
-    <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/form.css">
+    <title>บันทึกการลา · ระบบลงเวลาและการลา</title>
+    <link rel="stylesheet" href="css/app.css">
 </head>
-<body>
-    <header>
-        <nav>
-            <ul>
-                <li><a href="index.html">หน้าหลัก</a></li>
-                <li><a href="attendance.html">ลงเวลางาน</a></li>
-                <li><a href="leave.html">คำร้องขอลางาน</a></li>
-                <li><a href="history.html">ประวัติการทำงานและการลา</a></li>
-            </ul>
-        </nav>
-    </header>
+<body data-page="leave" class="app-loading">
+    <header id="app-header"></header>
 
-    <main>
-        <section>
-            <div class="header-form">
-                <h1 id="page-title">แบบคำร้องลางาน</h1>
-                <div class="form-input">
-                    <label for="employee_id">รหัสพนักงาน:</label>
-                    <input id="employee_id" name="employee_id" type="text" inputmode="numeric" placeholder="กรอกรหัสพนักงาน (ตัวเลข)">
+    <main class="container narrow">
+        <div class="page-head">
+            <div>
+                <h1 id="page-title">บันทึกการลา</h1>
+                <div class="subtitle">บันทึกคำขอลาของพนักงานและผลการอนุมัติ</div>
+            </div>
+            <div class="actions">
+                <a class="btn secondary" href="history.html?tab=leave">กลับไปหน้ารายการ</a>
+            </div>
+        </div>
+
+        <div id="page-message" class="message" role="status"></div>
+
+        <form id="leave-form" class="card" novalidate>
+            <div class="form-grid">
+                <div class="field full">
+                    <label for="employee_id">พนักงาน</label>
+                    <select id="employee_id" name="employee_id" required></select>
                 </div>
-                <div class="form-input">
-                    <label for="leave_type">ประเภทการลา:</label>
-                    <select id="leave_type" name="leave_type">
-                        <option value="ลาป่วย">ลาป่วย</option>
-                        <option value="ลากิจ">ลากิจ</option>
-                        <option value="ลาพักร้อน">ลาพักร้อน</option>
-                        <option value="อื่น ๆ">อื่น ๆ</option>
+                <div class="field">
+                    <label for="leave_type">ประเภทการลา</label>
+                    <select id="leave_type" name="leave_type" required></select>
+                </div>
+                <div class="field">
+                    <span class="label">สิทธิ์วันลาปีนี้</span>
+                    <div id="balance-hint" class="muted">เลือกพนักงานเพื่อดูวันลาคงเหลือ</div>
+                </div>
+                <div class="field">
+                    <label for="start_date">วันที่เริ่มลา</label>
+                    <input id="start_date" name="start_date" type="date" required>
+                </div>
+                <div class="field">
+                    <label for="end_date">วันที่สิ้นสุดลา</label>
+                    <input id="end_date" name="end_date" type="date" required>
+                </div>
+                <div class="field full">
+                    <label class="checkbox">
+                        <input id="half_day" name="half_day" type="checkbox">
+                        ลาครึ่งวัน (เลือกได้เมื่อลาวันเดียว)
+                    </label>
+                </div>
+                <div class="field full">
+                    <label for="reason">เหตุผลการลา</label>
+                    <textarea id="reason" name="reason" maxlength="1000" required></textarea>
+                </div>
+                <div class="field">
+                    <label for="status">ผลการอนุมัติ</label>
+                    <select id="status" name="status">
+                        <option value="pending">รออนุมัติ</option>
+                        <option value="approved">อนุมัติ</option>
+                        <option value="rejected">ไม่อนุมัติ</option>
                     </select>
                 </div>
-                <div class="form-input">
-                    <label for="reason">เหตุผลการลา:</label>
-                    <textarea id="reason" name="reason" maxlength="1000" placeholder="กรอกเหตุผลการลา"></textarea>
-                </div>
-                <div class="form-input">
-                    <label for="start_date">วันที่เริ่มลา:</label>
-                    <input id="start_date" name="start_date" type="date">
-                </div>
-                <div class="form-input">
-                    <label for="end_date">วันที่สิ้นสุดลา:</label>
-                    <input id="end_date" name="end_date" type="date">
-                </div>
-
-                <div id="message" class="message" role="status"></div>
-
-                <div class="center">
-                    <button type="button" id="submitBtn">บันทึกการลา</button>
+                <div class="field">
+                    <label for="status_note">หมายเหตุการอนุมัติ</label>
+                    <input id="status_note" name="status_note" type="text" maxlength="255" placeholder="เช่น มีใบรับรองแพทย์">
                 </div>
             </div>
-        </section>
-    </main>
+            <p class="small muted" id="decided-info"></p>
 
-    <footer>
-        <p>ระบบการจัดการลงเวลาและการลา</p>
-    </footer>
+            <div class="form-actions">
+                <button type="button" class="btn danger hidden" id="delete-btn">ลบรายการนี้</button>
+                <button type="submit" class="btn" id="submit-btn">บันทึก</button>
+            </div>
+        </form>
+    </main>
 
     <script src="js/common.js"></script>
     <script src="js/leave.js"></script>
