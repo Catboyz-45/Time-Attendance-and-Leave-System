@@ -7,22 +7,39 @@
     <link rel="stylesheet" href="css/app.css">
 </head>
 <body class="login-page">
-    <main class="login-card">
-        <h1>ระบบลงเวลาและการลา</h1>
-        <p class="muted">สำหรับเจ้าหน้าที่ฝ่ายบุคคล</p>
+    <section class="login-aside">
+        <div class="brand">
+            <span class="brand-mark">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            </span>
+            <span class="brand-text"><strong>ระบบลงเวลาและการลา</strong></span>
+        </div>
+        <div>
+            <h2>งานบุคคลประจำวัน จบในที่เดียว</h2>
+            <p>ลงเวลา บันทึกการลา ติดตามผลอนุมัติ และออกรายงานรายเดือนสำหรับฝ่ายเงินเดือน</p>
+        </div>
+        <div class="company small">สำหรับเจ้าหน้าที่ฝ่ายบุคคลเท่านั้น</div>
+    </section>
 
-        <form id="login-form" novalidate>
-            <div id="page-message" class="message" role="alert"></div>
-            <div class="field">
-                <label for="username">ชื่อผู้ใช้</label>
-                <input id="username" name="username" type="text" autocomplete="username" required autofocus>
-            </div>
-            <div class="field">
-                <label for="password">รหัสผ่าน</label>
-                <input id="password" name="password" type="password" autocomplete="current-password" required>
-            </div>
-            <button type="submit" class="btn" id="login-btn">เข้าสู่ระบบ</button>
-        </form>
+    <main class="login-main">
+        <div class="login-card">
+            <h1>เข้าสู่ระบบ</h1>
+            <p class="muted">ใช้ชื่อผู้ใช้ที่ผู้ดูแลระบบสร้างให้</p>
+
+            <form id="login-form" novalidate>
+                <div id="page-message" class="message" role="alert"></div>
+                <div class="field">
+                    <label for="username">ชื่อผู้ใช้</label>
+                    <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+                </div>
+                <div class="field">
+                    <label for="password">รหัสผ่าน</label>
+                    <input id="password" name="password" type="password" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="btn" id="login-btn">เข้าสู่ระบบ</button>
+            </form>
+            <p class="small muted foot">ลืมรหัสผ่าน: ติดต่อผู้ดูแลระบบเพื่อตั้งรหัสผ่านใหม่</p>
+        </div>
     </main>
 
     <script src="js/common.js"></script>

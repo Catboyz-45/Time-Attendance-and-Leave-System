@@ -29,7 +29,7 @@ const renderMonthly = (data) => {
         <div class="table-wrap">
             <table class="data">
                 <thead><tr>
-                    <th>รหัส</th><th>ชื่อ-สกุล</th><th>แผนก</th>
+                    <th>พนักงาน</th>
                     <th class="num">วันทำงาน</th><th class="num">มาทำงาน</th><th class="num">สาย</th>
                     <th class="num">ออกก่อน</th><th class="num">OT (ชม.)</th><th class="num">ทำงานวันหยุด</th>
                     <th class="num">ขาดงาน</th><th class="num">ไม่ลงเวลาออก</th>
@@ -38,10 +38,8 @@ const renderMonthly = (data) => {
                 </tr></thead>
                 <tbody>${data.rows.map((row) => `
                     <tr class="${row.active ? '' : 'inactive'}">
-                        <td class="nowrap">${escapeHtml(row.employee_code)}</td>
-                        <td>${escapeHtml(employeeName(row))}${row.active ? '' : ' <span class="badge">ปิดสถานะ</span>'}
+                        <td class="emp-cell">${employeeCell(row)}${row.active ? '' : '<div><span class="badge">ปิดสถานะ</span></div>'}
                             ${row.conflict_days ? `<div>${historyLink(row, { conflict: 1 }, `<span class="badge error">ขัดกับใบลา ${row.conflict_days} วัน</span>`)}</div>` : ''}</td>
-                        <td>${escapeHtml(row.department || '-')}</td>
                         <td class="num">${row.working_days}</td>
                         <td class="num">${row.present_days}</td>
                         <td class="num">${row.late_days ? historyLink(row, { late: 1 }, `${row.late_days} ครั้ง`) : 0}
@@ -91,14 +89,12 @@ const renderBalance = (data) => {
         <div class="table-wrap">
             <table class="data">
                 <thead><tr>
-                    <th>รหัส</th><th>ชื่อ-สกุล</th><th>แผนก</th><th>เริ่มงาน</th>
+                    <th>พนักงาน</th><th>เริ่มงาน</th>
                     ${data.leave_types.map((type) => `<th class="num">${escapeHtml(type)}</th>`).join('')}
                 </tr></thead>
                 <tbody>${data.rows.map((row) => `
                     <tr>
-                        <td class="nowrap">${escapeHtml(row.employee_code)}</td>
-                        <td>${escapeHtml(employeeName(row))}</td>
-                        <td>${escapeHtml(row.department || '-')}</td>
+                        <td class="emp-cell">${employeeCell(row)}</td>
                         <td class="nowrap">${row.start_date ? escapeHtml(formatThaiDate(row.start_date)) : '<span class="muted">ไม่ระบุ</span>'}</td>
                         ${data.leave_types.map((type) => `<td class="num">${cell(row.balances[type], row, type)}</td>`).join('')}
                     </tr>`).join('')}

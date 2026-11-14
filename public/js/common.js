@@ -4,16 +4,51 @@ const LEAVE_TYPES = ['ลาป่วย', 'ลากิจ', 'ลาพัก�
 const LEAVE_STATUS_LABELS = { pending: 'รออนุมัติ', approved: 'อนุมัติ', rejected: 'ไม่อนุมัติ' };
 const WEEKDAY_LABELS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
 
-// เมนูด้านบน (adminOnly = แสดงเฉพาะผู้ดูแลระบบ)
-const NAV_ITEMS = [
-    { page: 'dashboard', href: 'index.html', label: 'ภาพรวม' },
-    { page: 'attendance', href: 'history.html?tab=attendance', label: 'การลงเวลา' },
-    { page: 'leave', href: 'history.html?tab=leave', label: 'การลา' },
-    { page: 'employees', href: 'employees.html', label: 'พนักงาน' },
-    { page: 'reports', href: 'reports.html', label: 'รายงาน' },
-    { page: 'import', href: 'import.html', label: 'นำเข้าข้อมูล' },
-    { page: 'settings', href: 'settings.html', label: 'ตั้งค่า' },
-    { page: 'audit', href: 'audit.html', label: 'ประวัติการแก้ไข', adminOnly: true },
+// ไอคอนเส้น (SVG) ที่ใช้ในเมนูและปุ่ม
+const ICON_PATHS = {
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    dashboard: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+    users: '<circle cx="9" cy="8" r="4"/><path d="M2 21c0-3.5 3-6 7-6s7 2.5 7 6M16 4a4 4 0 0 1 0 8M22 21c0-3-2-5-5-5.7"/>',
+    chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    upload: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+    settings: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+    history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/>',
+    logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+    menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+    close: '<path d="M6 6l12 12M18 6L6 18"/>',
+    edit: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/>',
+    trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+    print: '<path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7"/>',
+};
+
+const icon = (name, size = 18) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ''}</svg>`;
+
+// เมนูด้านซ้าย แบ่งเป็นกลุ่ม (adminOnly = แสดงเฉพาะผู้ดูแลระบบ)
+const NAV_GROUPS = [
+    {
+        label: 'งานประจำวัน',
+        items: [
+            { page: 'dashboard', href: 'index.html', label: 'ภาพรวม', icon: 'dashboard' },
+            { page: 'attendance', href: 'history.html?tab=attendance', label: 'การลงเวลา', icon: 'clock' },
+            { page: 'leave', href: 'history.html?tab=leave', label: 'การลา', icon: 'calendar', countId: 'nav-pending-count' },
+        ],
+    },
+    {
+        label: 'ข้อมูล',
+        items: [
+            { page: 'employees', href: 'employees.html', label: 'พนักงาน', icon: 'users' },
+            { page: 'reports', href: 'reports.html', label: 'รายงาน', icon: 'chart' },
+            { page: 'import', href: 'import.html', label: 'นำเข้าข้อมูล', icon: 'upload' },
+        ],
+    },
+    {
+        label: 'ระบบ',
+        items: [
+            { page: 'settings', href: 'settings.html', label: 'ตั้งค่า', icon: 'settings' },
+            { page: 'audit', href: 'audit.html', label: 'ประวัติการแก้ไข', icon: 'history', adminOnly: true },
+        ],
+    },
 ];
 
 const App = { user: null };
@@ -78,21 +113,48 @@ const renderHeader = (user) => {
     const header = document.getElementById('app-header');
     if (!header) return;
     const currentPage = document.body.dataset.page;
-    const links = NAV_ITEMS
-        .filter((item) => !item.adminOnly || user.role === 'admin')
-        .map((item) => `<a href="${item.href}" class="${item.page === currentPage ? 'active' : ''}">${escapeHtml(item.label)}</a>`)
-        .join('');
+    const groups = NAV_GROUPS.map((group) => {
+        const items = group.items.filter((item) => !item.adminOnly || user.role === 'admin');
+        if (items.length === 0) return '';
+        const links = items.map((item) => {
+            const active = item.page === currentPage;
+            const count = item.countId ? `<span class="nav-count hidden" id="${item.countId}"></span>` : '';
+            return `<a href="${item.href}" class="${active ? 'active' : ''}"${active ? ' aria-current="page"' : ''}>${icon(item.icon)}<span>${escapeHtml(item.label)}</span>${count}</a>`;
+        }).join('');
+        return `<div class="nav-group"><div class="nav-group-label">${escapeHtml(group.label)}</div>${links}</div>`;
+    }).join('');
 
-    header.className = 'topbar';
+    const roleLabel = user.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ฝ่ายบุคคล (HR)';
+    const initial = Array.from((user.display_name || user.username || '?').trim())[0] || '?';
+
+    header.className = 'sidebar';
     header.innerHTML = `
-        <div class="topbar-inner">
-            <a class="brand" href="index.html">ระบบลงเวลาและการลา</a>
-            <nav class="nav">${links}</nav>
-            <div class="user-menu">
-                <span title="${escapeHtml(`${user.username} · ${user.role === 'admin' ? 'ผู้ดูแลระบบ' : 'HR'}`)}">${escapeHtml(user.display_name)}</span>
-                <button type="button" id="logout-btn">ออกจากระบบ</button>
+        <div class="sidebar-top">
+            <a class="brand" href="index.html">
+                <span class="brand-mark">${icon('clock', 20)}</span>
+                <span class="brand-text"><strong>ลงเวลาและการลา</strong><span>สำหรับฝ่ายบุคคล</span></span>
+            </a>
+            <button type="button" class="icon-btn menu-toggle" id="menu-toggle" aria-expanded="false" aria-controls="sidebar-body" aria-label="เปิดเมนู">${icon('menu', 20)}</button>
+        </div>
+        <div class="sidebar-body" id="sidebar-body">
+            <nav class="nav" aria-label="เมนูหลัก">${groups}</nav>
+            <div class="user-box">
+                <span class="avatar" aria-hidden="true">${escapeHtml(initial)}</span>
+                <span class="user-info">
+                    <span class="name" title="${escapeHtml(user.username)}">${escapeHtml(user.display_name)}</span>
+                    <span class="role">${roleLabel}</span>
+                </span>
+                <button type="button" class="icon-btn" id="logout-btn" aria-label="ออกจากระบบ" title="ออกจากระบบ">${icon('logout', 16)}</button>
             </div>
         </div>`;
+
+    const toggle = document.getElementById('menu-toggle');
+    toggle.addEventListener('click', () => {
+        const open = header.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.setAttribute('aria-label', open ? 'ปิดเมนู' : 'เปิดเมนู');
+        toggle.innerHTML = icon(open ? 'close' : 'menu', 20);
+    });
 
     document.getElementById('logout-btn').addEventListener('click', async () => {
         try {
@@ -101,6 +163,22 @@ const renderHeader = (user) => {
             window.location.href = 'login.html';
         }
     });
+
+    refreshPendingCount();
+};
+
+// ตัวเลขใบลารอผลข้างเมนู "การลา" (ไม่สำคัญพอจะแจ้ง error ถ้าโหลดไม่ได้)
+const refreshPendingCount = async () => {
+    const badge = document.getElementById('nav-pending-count');
+    if (!badge) return;
+    try {
+        const { total } = await api('/leave_requests', { query: { status: 'pending', page_size: 1 } });
+        badge.textContent = total > 99 ? '99+' : String(total);
+        badge.title = `ใบลารอผลอนุมัติ ${total} รายการ`;
+        badge.classList.toggle('hidden', !total);
+    } catch (error) {
+        badge.classList.add('hidden');
+    }
 };
 
 // ใช้แทน DOMContentLoaded ในทุกหน้าที่ต้อง login: init(user) จะถูกเรียกหลังตรวจสิทธิ์แล้ว
@@ -247,6 +325,14 @@ const formatDays = (value) => {
 
 const employeeName = (row) => `${row.first_name || ''} ${row.last_name || ''}`.trim();
 const employeeLabel = (row) => `${row.employee_code} · ${employeeName(row)}`;
+
+// ช่องพนักงานในตาราง: ชื่อตัวหนา บรรทัดล่างเป็นรหัสและแผนก
+const employeeCell = (row) => `<div class="cell-title">${escapeHtml(employeeName(row))}</div>
+    <div class="sub">${escapeHtml([row.employee_code, row.department].filter(Boolean).join(' · '))}</div>`;
+
+// ปุ่มไอคอนในแถวตาราง (มีข้อความบอกสำหรับโปรแกรมอ่านหน้าจอและ tooltip)
+const iconButton = (name, label, attrs = '', extraClass = '') => `<button type="button" class="btn secondary sm icon-only ${extraClass}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}" ${attrs}>${icon(name, 16)}</button>`;
+const iconLink = (name, label, href, attrs = '') => `<a class="btn secondary sm icon-only" href="${escapeHtml(href)}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}" ${attrs}>${icon(name, 16)}</a>`;
 
 const statusBadge = (status) => `<span class="badge ${escapeHtml(status)}">${escapeHtml(LEAVE_STATUS_LABELS[status] || status)}</span>`;
 
@@ -419,6 +505,7 @@ const recordDecision = async (leave, status) => {
         } else {
             showPageMessage('success', `บันทึกผล "${LEAVE_STATUS_LABELS[status]}" โดย ${decision.approver_name} เรียบร้อย`);
         }
+        refreshPendingCount();
         return true;
     } catch (error) {
         showError(error);

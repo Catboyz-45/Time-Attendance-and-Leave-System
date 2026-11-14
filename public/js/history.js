@@ -14,15 +14,13 @@ const TABS = {
         addHref: 'attendance.html',
         addLabel: '+ ลงเวลา',
         emptyText: 'ไม่พบข้อมูลการลงเวลา',
-        headers: ['วันที่', 'รหัส', 'ชื่อ-สกุล', 'แผนก', 'เข้างาน', 'ออกงาน', 'หมายเหตุ', ''],
+        headers: ['วันที่', 'พนักงาน', 'เข้างาน', 'ออกงาน', 'หมายเหตุ', ''],
         row: (row) => `
             <tr>
                 <td class="nowrap">${escapeHtml(formatThaiDate(row.date))}
                     ${row.day_type === 'holiday' ? '<div><span class="badge">วันหยุด</span></div>' : ''}
                     ${row.day_type === 'weekend' ? '<div><span class="badge">วันหยุดสัปดาห์</span></div>' : ''}</td>
-                <td class="nowrap">${escapeHtml(row.employee_code)}</td>
-                <td>${escapeHtml(employeeName(row))}</td>
-                <td>${escapeHtml(row.department || '-')}</td>
+                <td class="emp-cell">${employeeCell(row)}</td>
                 <td class="nowrap">${escapeHtml(formatTime(row.time_in))}
                     ${row.is_late ? `<div><span class="badge late">สาย ${escapeHtml(formatMinutes(row.late_minutes))}</span></div>` : ''}</td>
                 <td class="nowrap">${row.time_out ? escapeHtml(formatTime(row.time_out)) : '<span class="badge pending">ยังไม่ลง</span>'}
@@ -32,9 +30,8 @@ const TABS = {
                 <td>${escapeHtml(row.note || '')} ${row.source === 'import' ? '<span class="badge">นำเข้า</span>' : ''}
                     ${row.on_leave ? '<div><span class="badge error" title="วันนี้มีใบลาเต็มวันที่อนุมัติแล้ว">ขัดกับใบลา</span></div>' : ''}</td>
                 <td class="actions-cell">
-                    <a class="btn secondary sm" href="attendance.html?id=${encodeURIComponent(row.id)}">แก้ไข</a>
-                    <button type="button" class="btn danger sm" data-delete="${escapeHtml(row.id)}"
-                        data-label="${escapeHtml(`${employeeLabel(row)} วันที่ ${formatThaiDate(row.date)}`)}">ลบ</button>
+                    ${iconLink('edit', 'แก้ไข', `attendance.html?id=${encodeURIComponent(row.id)}`)}
+                    ${iconButton('trash', 'ลบ', `data-delete="${escapeHtml(row.id)}" data-label="${escapeHtml(`${employeeLabel(row)} วันที่ ${formatThaiDate(row.date)}`)}"`, 'danger-ghost')}
                 </td>
             </tr>`,
         csvHeaders: ['วันที่', 'ประเภทวัน', 'รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'แผนก', 'เวลาเข้างาน', 'เวลาออกงาน',
@@ -53,14 +50,12 @@ const TABS = {
         addHref: 'leave.html',
         addLabel: '+ บันทึกการลา',
         emptyText: 'ไม่พบข้อมูลการลา',
-        headers: ['วันที่ลา', 'รหัส', 'ชื่อ-สกุล', 'แผนก', 'ประเภท', 'วัน', 'เหตุผล', 'สถานะ', ''],
+        headers: ['พนักงาน', 'การลา', 'วัน', 'เหตุผล', 'สถานะ', ''],
         row: (row) => `
             <tr>
-                <td class="nowrap">${escapeHtml(formatDateRange(row.start_date, row.end_date))}</td>
-                <td class="nowrap">${escapeHtml(row.employee_code)}</td>
-                <td>${escapeHtml(employeeName(row))}</td>
-                <td>${escapeHtml(row.department || '-')}</td>
-                <td class="nowrap">${escapeHtml(row.leave_type)}${row.half_day ? ' (ครึ่งวัน)' : ''}</td>
+                <td class="emp-cell">${employeeCell(row)}</td>
+                <td><div class="cell-title nowrap">${escapeHtml(row.leave_type)}${row.half_day ? ' (ครึ่งวัน)' : ''}</div>
+                    <div class="sub">${escapeHtml(formatDateRange(row.start_date, row.end_date))}</div></td>
                 <td class="num">${escapeHtml(formatDays(row.days))}</td>
                 <td><div class="reason">${escapeHtml(row.reason)}</div></td>
                 <td>
@@ -71,11 +66,11 @@ const TABS = {
                 <td class="actions-cell">
                     ${row.status === 'pending' ? `
                         <button type="button" class="btn secondary sm" data-copy="${escapeHtml(row.id)}">ส่งหัวหน้า</button>
-                        <button type="button" class="btn success sm" data-status="approved" data-id="${escapeHtml(row.id)}">บันทึกอนุมัติ</button>
+                        <button type="button" class="btn success sm" data-status="approved" data-id="${escapeHtml(row.id)}">อนุมัติ</button>
                         <button type="button" class="btn secondary sm" data-status="rejected" data-id="${escapeHtml(row.id)}">ไม่อนุมัติ</button>` : ''}
-                    <a class="btn secondary sm" href="leave.html?id=${encodeURIComponent(row.id)}">แก้ไข</a>
-                    <button type="button" class="btn danger sm" data-delete="${escapeHtml(row.id)}"
-                        data-label="${escapeHtml(`${employeeLabel(row)} (${formatDateRange(row.start_date, row.end_date)})`)}">ลบ</button>
+                    ${iconLink('print', 'พิมพ์ใบลา', `print-leave.html?id=${encodeURIComponent(row.id)}`, 'target="_blank" rel="noopener"')}
+                    ${iconLink('edit', 'แก้ไข', `leave.html?id=${encodeURIComponent(row.id)}`)}
+                    ${iconButton('trash', 'ลบ', `data-delete="${escapeHtml(row.id)}" data-label="${escapeHtml(`${employeeLabel(row)} (${formatDateRange(row.start_date, row.end_date)})`)}"`, 'danger-ghost')}
                 </td>
             </tr>`,
         csvHeaders: ['วันที่เริ่มลา', 'วันที่สิ้นสุดลา', 'รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'แผนก', 'ประเภทการลา', 'ครึ่งวัน', 'จำนวนวัน', 'เหตุผล', 'สถานะ', 'ผู้อนุมัติ', 'หมายเหตุการอนุมัติ', 'บันทึกผลโดย (HR)'],

@@ -18,22 +18,41 @@ const renderList = (containerId, items, emptyText, renderItem) => {
 const renderStats = (data) => {
     const today = data.today;
     const historyLink = (params) => `history.html${buildQuery({ tab: 'attendance', ...params })}`;
+    const percent = data.active_employees ? Math.min(100, Math.round((data.checked_in / data.active_employees) * 100)) : 0;
     const stats = [
-        { label: 'พนักงานทั้งหมด', value: data.active_employees, href: 'employees.html' },
-        { label: 'ลงเวลาแล้ววันนี้', value: `${data.checked_in}`, href: historyLink({ from: today, to: today }) },
         {
-            label: 'มาสายวันนี้', value: data.late.length, href: historyLink({ from: today, to: today, late: 1 }), tone: data.late.length ? 'warn' : '',
+            label: 'พนักงานทั้งหมด', value: data.active_employees, hint: 'ที่ยังทำงานอยู่', href: 'employees.html',
         },
         {
-            label: 'ยังไม่ลงเวลา', value: data.is_working_day ? data.not_checked_in.total : '-', tone: data.not_checked_in.total ? 'bad' : '',
-        },
-        { label: 'ลาวันนี้', value: data.on_leave.length, href: `history.html${buildQuery({ tab: 'leave', from: today, to: today, status: 'approved' })}` },
-        {
-            label: 'ใบลารอผลอนุมัติ', value: data.pending_leaves.total, href: 'history.html?tab=leave&status=pending', tone: data.pending_leaves.total ? 'warn' : '',
+            label: 'ลงเวลาแล้ววันนี้', value: data.checked_in, meter: percent, href: historyLink({ from: today, to: today }),
         },
         {
-            label: 'ลืมลงเวลาออก (30 วัน)',
+            label: 'มาสายวันนี้',
+            value: data.late.length,
+            hint: `หลัง ${formatTime(data.late_after)} น.`,
+            href: historyLink({ from: today, to: today, late: 1 }),
+            tone: data.late.length ? 'warn' : '',
+        },
+        {
+            label: 'ยังไม่ลงเวลา',
+            value: data.is_working_day ? data.not_checked_in.total : '-',
+            hint: data.is_working_day ? 'และไม่ได้ลา' : 'วันนี้ไม่ใช่วันทำงาน',
+            tone: data.is_working_day && data.not_checked_in.total ? 'bad' : '',
+        },
+        {
+            label: 'ลาวันนี้', value: data.on_leave.length, hint: 'อนุมัติแล้ว', href: `history.html${buildQuery({ tab: 'leave', from: today, to: today, status: 'approved' })}`,
+        },
+        {
+            label: 'ใบลารอผลอนุมัติ',
+            value: data.pending_leaves.total,
+            hint: data.pending_leaves.total ? 'ต้องบันทึกผล' : 'ไม่มีค้าง',
+            href: 'history.html?tab=leave&status=pending',
+            tone: data.pending_leaves.total ? 'warn attention' : '',
+        },
+        {
+            label: 'ลืมลงเวลาออก',
             value: data.missing_out_previous,
+            hint: '30 วันที่ผ่านมา',
             href: historyLink({ missing_out: 1, from: addDaysStr(today, -30), to: addDaysStr(today, -1) }),
             tone: data.missing_out_previous ? 'warn' : '',
         },
@@ -42,9 +61,13 @@ const renderStats = (data) => {
     document.getElementById('stats').innerHTML = stats.map((stat) => {
         const tag = stat.href ? 'a' : 'div';
         const href = stat.href ? ` href="${escapeHtml(stat.href)}"` : '';
+        const extra = stat.meter !== undefined
+            ? `<span class="meter" title="${stat.meter}% ของพนักงาน"><span style="width:${stat.meter}%"></span></span>`
+            : `<div class="hint">${escapeHtml(stat.hint || '')}</div>`;
         return `<${tag} class="stat ${stat.tone || ''}"${href}>
             <div class="label">${escapeHtml(stat.label)}</div>
             <div class="value">${escapeHtml(stat.value)}</div>
+            ${extra}
         </${tag}>`;
     }).join('');
 };

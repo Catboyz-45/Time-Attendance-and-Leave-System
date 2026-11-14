@@ -44,7 +44,7 @@
 
 | ส่วน | เทคโนโลยี |
 |---|---|
-| Front-End | HTML, CSS, JavaScript (ไม่ใช้ framework), ฟอนต์ Kanit |
+| Front-End | HTML, CSS, JavaScript (ไม่ใช้ framework), ฟอนต์ Noto Sans Thai (เก็บไว้ในเครื่อง ใช้ได้แม้ไม่มีอินเทอร์เน็ต) |
 | Back-End | Node.js 22, Express, express-session, bcrypt, helmet |
 | Database | MySQL 8.0 (`utf8mb4`) |
 | ติดตั้ง | Docker Compose |
@@ -225,7 +225,7 @@ cd server && TEST_USERNAME=admin TEST_PASSWORD=<รหัสผ่าน> npm te
 │   ├── css/app.css
 │   ├── js/common.js        # เรียก API, เมนู, ฟังก์ชันที่ใช้ร่วมกัน
 │   ├── js/<หน้า>.js
-│   └── fonts/              # Kanit (SIL Open Font License)
+│   └── fonts/              # Noto Sans Thai (SIL Open Font License)
 ├── server/
 │   ├── server.js           # จุดเริ่มต้น
 │   ├── src/
