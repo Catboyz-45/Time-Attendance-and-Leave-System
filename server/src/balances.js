@@ -27,26 +27,22 @@ const annualQuotaForYear = (year, eligibleFrom, settings) => {
 };
 
 /**
+ * คำนวณสิทธิ์วันลาจากข้อมูลที่โหลดมาแล้ว (ไม่แตะฐานข้อมูล ใช้ร่วมกับโหมดทดลองบน GitHub Pages ได้)
  * employees: แถวจากตาราง employees (ต้องมี id, start_date)
+ * leaves: คำขอลาที่ไม่ใช่ "ไม่อนุมัติ" ตั้งแต่ปี firstYearFor(year) ถึงปี year
+ * calendar: ปฏิทินตั้งแต่ปี firstYearFor(year) ถึงปี year
  * คืนค่า Map(employee_id -> { eligible_from, balances: { [ประเภท]: { quota, carried, used, pending, remaining } } })
  *   quota = null หมายถึงไม่จำกัด, remaining = quota + carried - used (ไม่รวมที่รออนุมัติ)
  */
-const computeBalances = async (employees, year, settings, { excludeLeaveId = 0 } = {}) => {
-  const result = new Map();
-  if (employees.length === 0) return result;
+const firstYearFor = (year, settings) => (Number(settings.annual_leave_carry_over_max || 0) > 0
+  ? year - CARRY_LOOKBACK_YEARS : year);
 
+const buildBalances = (employees, leaves, year, settings, calendar) => {
+  const result = new Map();
   const carryMax = Number(settings.annual_leave_carry_over_max || 0);
-  const firstYear = carryMax > 0 ? year - CARRY_LOOKBACK_YEARS : year;
+  const firstYear = firstYearFor(year, settings);
   const yearFrom = `${year}-01-01`;
   const yearTo = `${year}-12-31`;
-
-  const [leaves] = await pool.query(
-    `SELECT employee_id, leave_type, start_date, end_date, half_day, status FROM leave_requests
-     WHERE deleted_at IS NULL AND status <> 'rejected' AND employee_id IN (?)
-       AND start_date <= ? AND end_date >= ? AND id <> ?`,
-    [employees.map((employee) => employee.id), yearTo, `${firstYear}-01-01`, excludeLeaveId],
-  );
-  const calendar = await loadCalendar(`${firstYear}-01-01`, yearTo, settings);
 
   const leavesByEmployee = new Map();
   for (const leave of leaves) {
@@ -98,4 +94,22 @@ const computeBalances = async (employees, year, settings, { excludeLeaveId = 0 }
   return result;
 };
 
-module.exports = { computeBalances, annualEligibleFrom };
+// โหลดคำขอลาและวันหยุดจากฐานข้อมูล แล้วคำนวณด้วย buildBalances
+const computeBalances = async (employees, year, settings, { excludeLeaveId = 0 } = {}) => {
+  if (employees.length === 0) return new Map();
+  const firstYear = firstYearFor(year, settings);
+  const yearTo = `${year}-12-31`;
+
+  const [leaves] = await pool.query(
+    `SELECT employee_id, leave_type, start_date, end_date, half_day, status FROM leave_requests
+     WHERE deleted_at IS NULL AND status <> 'rejected' AND employee_id IN (?)
+       AND start_date <= ? AND end_date >= ? AND id <> ?`,
+    [employees.map((employee) => employee.id), yearTo, `${firstYear}-01-01`, excludeLeaveId],
+  );
+  const calendar = await loadCalendar(`${firstYear}-01-01`, yearTo, settings);
+  return buildBalances(employees, leaves, year, settings, calendar);
+};
+
+module.exports = {
+  computeBalances, buildBalances, annualEligibleFrom, firstYearFor,
+};
