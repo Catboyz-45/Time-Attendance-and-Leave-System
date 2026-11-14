@@ -9,7 +9,7 @@ const nextPage = () => {
 document.addEventListener('DOMContentLoaded', async () => {
     // ถ้า login อยู่แล้วให้ไปหน้าหลักเลย
     try {
-        const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        const response = await apiFetch('/api/auth/me', { credentials: 'same-origin' });
         if (response.ok) {
             window.location.href = nextPage();
             return;

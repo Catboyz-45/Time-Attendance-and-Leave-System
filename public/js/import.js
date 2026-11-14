@@ -28,7 +28,7 @@ const readFileText = async (file) => {
 const readExcelTable = async (file) => {
     let response;
     try {
-        response = await fetch('/api/import/parse-xlsx', {
+        response = await apiFetch('/api/import/parse-xlsx', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/octet-stream' },

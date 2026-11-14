@@ -78,11 +78,14 @@ const redirectToLogin = () => {
     window.location.href = `login.html${buildQuery({ next })}`;
 };
 
+// เรียกเซิร์ฟเวอร์ (โหมดทดลองบน GitHub Pages จะตั้ง window.DemoServer ไว้ เพื่อตอบ /api จากข้อมูลในเบราว์เซอร์แทน)
+const apiFetch = (url, options) => (window.DemoServer ? window.DemoServer.fetch(url, options) : fetch(url, options));
+
 // เรียก API แล้วคืนค่า JSON ถ้าเซิร์ฟเวอร์ตอบ error จะ throw ApiError พร้อมข้อความจากเซิร์ฟเวอร์
 const api = async (path, { method = 'GET', body, query } = {}) => {
     let response;
     try {
-        response = await fetch(`/api${path}${buildQuery(query)}`, {
+        response = await apiFetch(`/api${path}${buildQuery(query)}`, {
             method,
             credentials: 'same-origin',
             headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
