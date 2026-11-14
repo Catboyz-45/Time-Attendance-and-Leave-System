@@ -7,6 +7,7 @@ const LEAVE_STATUSES = ['pending', 'approved', 'rejected'];
 
 // ค่าเริ่มต้น: โควตาวันลาตามขั้นต่ำของ พ.ร.บ.คุ้มครองแรงงาน (บริษัทปรับเพิ่มได้ในหน้าตั้งค่า)
 const DEFAULT_SETTINGS = {
+  company_name: '', // แสดงบนใบลาที่พิมพ์
   work_start_time: '08:30',
   work_end_time: '17:30',
   late_grace_minutes: 0,

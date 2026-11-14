@@ -61,6 +61,7 @@ const renderPending = (pending) => {
                 <div class="sub">${escapeHtml(leave.reason)}</div>
             </div>
             <div class="actions">
+                <button type="button" class="btn secondary sm" data-copy="${leave.id}">ส่งหัวหน้า</button>
                 <button type="button" class="btn success sm" data-approve="${leave.id}" data-status="approved">บันทึกอนุมัติ</button>
                 <button type="button" class="btn secondary sm" data-approve="${leave.id}" data-status="rejected">ไม่อนุมัติ</button>
             </div>
@@ -129,6 +130,18 @@ onAppReady(async () => {
 
     // ปุ่มบันทึกผลอนุมัติ/ไม่อนุมัติ (ระบุชื่อผู้อนุมัติในกล่องที่เปิดขึ้นมา)
     document.getElementById('pending-list').addEventListener('click', async (event) => {
+        const copyButton = event.target.closest('button[data-copy]');
+        if (copyButton) {
+            await withBusy(copyButton, async () => {
+                try {
+                    await openApprovalMessage(copyButton.dataset.copy);
+                } catch (error) {
+                    showError(error);
+                }
+            });
+            return;
+        }
+
         const button = event.target.closest('button[data-approve]');
         if (!button) return;
         const leave = pendingById.get(button.dataset.approve);

@@ -24,6 +24,8 @@ settingsRouter.put('/', requireAdmin, asyncHandler(async (req, res) => {
   const before = await getSettings();
   const errors = [];
 
+  const companyName = isFilled(body.company_name) ? String(body.company_name).trim() : '';
+  if (companyName.length > 150) errors.push('ชื่อบริษัทต้องไม่เกิน 150 ตัวอักษร');
   if (!isValidTime(body.work_start_time)) errors.push('รูปแบบเวลาเข้างานไม่ถูกต้อง');
   if (!isValidTime(body.work_end_time)) errors.push('รูปแบบเวลาเลิกงานไม่ถูกต้อง');
   if (isValidTime(body.work_start_time) && isValidTime(body.work_end_time)
@@ -55,6 +57,7 @@ settingsRouter.put('/', requireAdmin, asyncHandler(async (req, res) => {
   if (errors.length > 0) throw badRequest(errors);
 
   const after = {
+    company_name: companyName,
     work_start_time: body.work_start_time.slice(0, 5),
     work_end_time: body.work_end_time.slice(0, 5),
     late_grace_minutes: grace,

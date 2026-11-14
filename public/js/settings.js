@@ -61,6 +61,7 @@ const setupWorkForm = async (user) => {
                 value="${settings.leave_quotas[type] ?? ''}" placeholder="ไม่จำกัด">
         </div>`).join('');
     setFormValues(form, {
+        company_name: settings.company_name,
         work_start_time: settings.work_start_time,
         work_end_time: settings.work_end_time,
         late_grace_minutes: settings.late_grace_minutes,
@@ -76,6 +77,7 @@ const setupWorkForm = async (user) => {
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const body = {
+            company_name: form.elements.company_name.value.trim(),
             work_start_time: form.elements.work_start_time.value,
             work_end_time: form.elements.work_end_time.value,
             late_grace_minutes: Number(form.elements.late_grace_minutes.value || 0),

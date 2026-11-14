@@ -99,6 +99,21 @@ onAppReady(async () => {
         });
         syncHalfDay();
         halfDay.checked = existing.half_day;
+        // ปุ่มส่งให้หัวหน้า (คัดลอกข้อความ) และพิมพ์ใบลา
+        const copyButton = document.getElementById('copy-btn');
+        const printLink = document.getElementById('print-link');
+        copyButton.classList.remove('hidden');
+        printLink.classList.remove('hidden');
+        printLink.href = `print-leave.html?id=${encodeURIComponent(id)}`;
+        if (existing.status !== 'pending') copyButton.classList.add('secondary');
+        copyButton.addEventListener('click', () => withBusy(copyButton, async () => {
+            try {
+                await openApprovalMessage(id);
+            } catch (error) {
+                showError(error);
+            }
+        }));
+
         if (existing.decided_at) {
             document.getElementById('decided-info').textContent = `บันทึกผล "${LEAVE_STATUS_LABELS[existing.status]}" โดย ${existing.decided_by_name || '-'} (HR) เมื่อ ${formatDateTime(existing.decided_at)}`;
         }
@@ -140,12 +155,15 @@ onAppReady(async () => {
                     ? await api(`/leave_requests/${encodeURIComponent(id)}`, { method: 'PUT', body: data })
                     : await api('/leave_requests', { method: 'POST', body: data });
                 const text = `${id ? 'แก้ไข' : 'บันทึก'}คำขอลาเรียบร้อย (${formatDays(result.days)} วันทำงาน)`;
+                // ใบลาใหม่ที่รออนุมัติ: ไปหน้าของใบลานั้น เพื่อส่งให้หัวหน้า/พิมพ์ต่อได้ทันที
+                const nextStep = !id && data.status === 'pending';
+                const message = nextStep ? `${text} ขั้นต่อไป: กด "ส่งให้หัวหน้า" หรือ "พิมพ์ใบลา"` : text;
                 if (result.warnings && result.warnings.length > 0) {
-                    setFlash('warning', `${text} แต่มีข้อควรระวัง`, result.warnings);
+                    setFlash('warning', `${message} (มีข้อควรระวัง)`, result.warnings);
                 } else {
-                    setFlash('success', text);
+                    setFlash('success', message);
                 }
-                window.location.href = 'history.html?tab=leave';
+                window.location.href = nextStep ? `leave.html?id=${encodeURIComponent(result.id)}` : 'history.html?tab=leave';
             } catch (error) {
                 showError(error, messageDom);
             }

@@ -23,7 +23,7 @@ const SQL_NOW = { toSqlString: () => 'NOW()' };
 const SELECT_SQL = `
   SELECT l.id, l.employee_id, l.leave_type, l.start_date, l.end_date, l.half_day, l.reason,
          l.status, l.status_note, l.approver_name, l.decided_at, l.created_at, l.updated_at,
-         e.employee_code, e.first_name, e.last_name, e.department,
+         e.employee_code, e.first_name, e.last_name, e.department, e.position,
          u.display_name AS decided_by_name
   FROM leave_requests l
   JOIN employees e ON e.id = l.employee_id

@@ -60,6 +60,7 @@ const TABS = {
                 </td>
                 <td class="actions-cell">
                     ${row.status === 'pending' ? `
+                        <button type="button" class="btn secondary sm" data-copy="${escapeHtml(row.id)}">ส่งหัวหน้า</button>
                         <button type="button" class="btn success sm" data-status="approved" data-id="${escapeHtml(row.id)}">บันทึกอนุมัติ</button>
                         <button type="button" class="btn secondary sm" data-status="rejected" data-id="${escapeHtml(row.id)}">ไม่อนุมัติ</button>` : ''}
                     <a class="btn secondary sm" href="leave.html?id=${encodeURIComponent(row.id)}">แก้ไข</a>
@@ -230,6 +231,17 @@ onAppReady(async () => {
     document.getElementById('table').addEventListener('click', async (event) => {
         const deleteButton = event.target.closest('button[data-delete]');
         const statusButton = event.target.closest('button[data-status]');
+        const copyButton = event.target.closest('button[data-copy]');
+
+        if (copyButton) {
+            await withBusy(copyButton, async () => {
+                try {
+                    await openApprovalMessage(copyButton.dataset.copy);
+                } catch (error) {
+                    showError(error);
+                }
+            });
+        }
 
         if (deleteButton) {
             if (!window.confirm(`ลบรายการ ${deleteButton.dataset.label} ใช่หรือไม่?`)) return;

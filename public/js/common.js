@@ -414,6 +414,104 @@ const recordDecision = async (leave, status) => {
     }
 };
 
+// ===================== ส่งใบลาให้หัวหน้า: ข้อความสำหรับ LINE และสิทธิ์วันลา =====================
+
+// สิทธิ์วันลาทุกประเภทของพนักงานในปีที่ลา โดยไม่นับใบลานี้เอง (ถ้าอนุมัติไปแล้ว)
+// คืนค่า { year, rows: [{ type, quota, used, remaining, thisLeave, after }] }
+const leaveBalanceFor = async (leave) => {
+    const year = leave.start_date.slice(0, 4);
+    const data = await api('/reports/leave-balance', { query: { year, employee_id: leave.employee_id } });
+    const balances = data.rows[0] ? data.rows[0].balances : {};
+    const rows = data.leave_types.map((type) => {
+        const balance = balances[type] || { quota: null, used: 0 };
+        const isThisType = type === leave.leave_type;
+        const used = balance.used - (isThisType && leave.status === 'approved' ? leave.days : 0);
+        const remaining = balance.quota === null ? null : balance.quota - used;
+        const thisLeave = isThisType ? leave.days : 0;
+        return {
+            type, quota: balance.quota, used, remaining, thisLeave, after: remaining === null ? null : remaining - thisLeave,
+        };
+    });
+    return { year: Number(year), rows };
+};
+
+// ข้อความสรุปใบลา สำหรับวางส่งหัวหน้าใน LINE / อีเมล
+const buildApprovalMessage = (leave, balance) => {
+    const row = balance.rows.find((item) => item.type === leave.leave_type);
+    const lines = [
+        'ขออนุมัติการลา',
+        `พนักงาน: ${employeeName(leave)} (${leave.employee_code})${leave.department ? ` · ${leave.department}` : ''}`,
+        `ประเภท: ${leave.leave_type}${leave.half_day ? ' (ครึ่งวัน)' : ''}`,
+        `วันที่: ${formatDateRange(leave.start_date, leave.end_date)} (${formatDays(leave.days)} วันทำงาน)`,
+        `เหตุผล: ${leave.reason}`,
+    ];
+    if (row && row.quota !== null) {
+        lines.push(`สิทธิ์${leave.leave_type}ปี ${balance.year + 543}: เหลือ ${formatDays(row.remaining)} วัน → หลังลาครั้งนี้เหลือ ${formatDays(row.after)} วัน`);
+        if (row.after < 0) lines.push(`⚠ ลาเกินสิทธิ์ ${formatDays(-row.after)} วัน`);
+    }
+    lines.push('', 'รบกวนตอบกลับว่า อนุมัติ / ไม่อนุมัติ ครับ/ค่ะ');
+    return lines.join('\n');
+};
+
+// คัดลอกข้อความ: ใช้ Clipboard API ถ้าได้ (https/localhost) ไม่งั้นใช้วิธีเลือกข้อความแล้วคัดลอก
+const copyText = async (text, textarea) => {
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            return true;
+        }
+    } catch {
+        // ลองวิธีถัดไป
+    }
+    if (textarea) {
+        textarea.focus();
+        textarea.select();
+        try {
+            return document.execCommand('copy');
+        } catch {
+            return false;
+        }
+    }
+    return false;
+};
+
+// เปิดกล่องข้อความส่งหัวหน้า (แก้ไขข้อความได้ก่อนคัดลอก)
+const openApprovalMessage = async (leaveId) => {
+    const leave = await api(`/leave_requests/${encodeURIComponent(leaveId)}`);
+    const text = buildApprovalMessage(leave, await leaveBalanceFor(leave));
+
+    const dialog = document.createElement('dialog');
+    dialog.className = 'dialog';
+    dialog.innerHTML = `
+        <h2>ข้อความส่งหัวหน้า</h2>
+        <p class="muted small">คัดลอกแล้ววางใน LINE หรืออีเมลถึงผู้อนุมัติ แก้ข้อความได้ก่อนคัดลอก</p>
+        <div class="field">
+            <textarea rows="9" aria-label="ข้อความ"></textarea>
+        </div>
+        <div class="message" data-role="status"></div>
+        <div class="form-actions">
+            <a class="btn secondary" href="print-leave.html?id=${encodeURIComponent(leave.id)}" target="_blank" rel="noopener">พิมพ์ใบลา</a>
+            <button type="button" class="btn secondary" data-role="close">ปิด</button>
+            <button type="button" class="btn" data-role="copy">คัดลอกข้อความ</button>
+        </div>`;
+    document.body.appendChild(dialog);
+    const textarea = dialog.querySelector('textarea');
+    textarea.value = text;
+
+    dialog.querySelector('[data-role=close]').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('close', () => dialog.remove());
+    dialog.querySelector('[data-role=copy]').addEventListener('click', async () => {
+        const ok = await copyText(textarea.value, textarea);
+        showMessage(
+            dialog.querySelector('[data-role=status]'),
+            ok ? 'success' : 'warning',
+            ok ? 'คัดลอกแล้ว นำไปวางในแชทได้เลย' : 'คัดลอกอัตโนมัติไม่ได้ กรุณากด Ctrl+C (Mac: ⌘+C) เพื่อคัดลอกข้อความที่เลือกไว้',
+        );
+        if (!ok) textarea.select();
+    });
+    dialog.showModal();
+};
+
 // ===================== ตารางและการแบ่งหน้า =====================
 
 const setTableMessage = (container, message, isError = false) => {
