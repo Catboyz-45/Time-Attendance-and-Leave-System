@@ -1,23 +1,47 @@
-version: '3.7'
+# รันทั้งระบบด้วยคำสั่งเดียว: docker compose up -d --build
+#   เว็บ + API   -> http://localhost:3000
+#   phpMyAdmin  -> http://localhost:8841
+#   MySQL       -> localhost:8840 (user: root / password: root)
 services:
   db:
-    image: mysql:5.7
-    container_name: mysql_db_840
-    command: --default-authentication-plugin=mysql_native_password
+    image: mysql:8.0
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: webdb
     ports:
       - "8840:3306"
     volumes:
-      - mysql_data_840:/var/lib/mysql
-    networks:
-      - weblab840
-    restart: always
+      - mysql_data:/var/lib/mysql
+      # สร้างตารางให้อัตโนมัติตอนสร้างฐานข้อมูลครั้งแรก (volume ยังว่าง)
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: webdb
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    container_name: phpmyadmin_840
+    image: phpmyadmin:5.2
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
@@ -27,14 +51,7 @@ services:
       - "8841:80"
     depends_on:
       - db
-    networks:
-      - weblab840
-    restart: always
+    restart: unless-stopped
 
-networks:
-  weblab840:
-    driver: bridge
-    
 volumes:
-  mysql_data_840:
-    driver: local
+  mysql_data:

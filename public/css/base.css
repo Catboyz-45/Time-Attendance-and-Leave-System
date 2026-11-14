@@ -1,0 +1,17 @@
+/* สไตล์ที่ใช้ร่วมกันทุกหน้า: ฟอนต์ Kanit (ประกาศที่นี่ที่เดียว) */
+@font-face {
+    font-family: 'Kanit';
+    src: url('../fonts/Kanit-Regular.ttf') format('truetype');
+    font-display: swap;
+}
+
+body {
+    font-family: 'Kanit', sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
+}

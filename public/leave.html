@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบการลา</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/form.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="index.html">หน้าหลัก</a></li>
+                <li><a href="attendance.html">ลงเวลางาน</a></li>
+                <li><a href="leave.html">คำร้องขอลางาน</a></li>
+                <li><a href="history.html">ประวัติการทำงานและการลา</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section>
+            <div class="header-form">
+                <h1 id="page-title">แบบคำร้องลางาน</h1>
+                <div class="form-input">
+                    <label for="employee_id">รหัสพนักงาน:</label>
+                    <input id="employee_id" name="employee_id" type="text" inputmode="numeric" placeholder="กรอกรหัสพนักงาน (ตัวเลข)">
+                </div>
+                <div class="form-input">
+                    <label for="leave_type">ประเภทการลา:</label>
+                    <select id="leave_type" name="leave_type">
+                        <option value="ลาป่วย">ลาป่วย</option>
+                        <option value="ลากิจ">ลากิจ</option>
+                        <option value="ลาพักร้อน">ลาพักร้อน</option>
+                        <option value="อื่น ๆ">อื่น ๆ</option>
+                    </select>
+                </div>
+                <div class="form-input">
+                    <label for="reason">เหตุผลการลา:</label>
+                    <textarea id="reason" name="reason" maxlength="1000" placeholder="กรอกเหตุผลการลา"></textarea>
+                </div>
+                <div class="form-input">
+                    <label for="start_date">วันที่เริ่มลา:</label>
+                    <input id="start_date" name="start_date" type="date">
+                </div>
+                <div class="form-input">
+                    <label for="end_date">วันที่สิ้นสุดลา:</label>
+                    <input id="end_date" name="end_date" type="date">
+                </div>
+
+                <div id="message" class="message" role="status"></div>
+
+                <div class="center">
+                    <button type="button" id="submitBtn">บันทึกการลา</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>ระบบการจัดการลงเวลาและการลา</p>
+    </footer>
+
+    <script src="js/common.js"></script>
+    <script src="js/leave.js"></script>
+</body>
+</html>
