@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>พนักงาน · ระบบลงเวลาและการลา</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body data-page="employees" class="app-loading">
+    <header id="app-header"></header>
+
+    <main class="container">
+        <div class="page-head">
+            <div>
+                <h1>พนักงาน</h1>
+                <div class="subtitle">พนักงานที่ลาออกให้ปิดสถานะแทนการลบ เพื่อเก็บประวัติไว้</div>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn secondary" id="export-btn">Export CSV</button>
+                <button type="button" class="btn" id="add-btn">+ เพิ่มพนักงาน</button>
+            </div>
+        </div>
+
+        <div id="page-message" class="message" role="status"></div>
+
+        <form id="employee-form" class="card hidden" novalidate>
+            <h2 id="form-title">เพิ่มพนักงาน</h2>
+            <div id="form-message" class="message" role="alert"></div>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="employee_code">รหัสพนักงาน</label>
+                    <input id="employee_code" name="employee_code" type="text" maxlength="20" required placeholder="เช่น E001">
+                    <span class="hint">ต้องตรงกับรหัสในเครื่องสแกนนิ้ว (ถ้ามี)</span>
+                </div>
+                <div class="field">
+                    <label for="start_date">วันที่เริ่มงาน</label>
+                    <input id="start_date" name="start_date" type="date">
+                    <span class="hint">ใช้คำนวณวันขาดงาน ถ้าไม่กรอกจะนับตั้งแต่วันที่เพิ่มเข้าระบบ</span>
+                </div>
+                <div class="field">
+                    <label for="first_name">ชื่อ</label>
+                    <input id="first_name" name="first_name" type="text" maxlength="100" required>
+                </div>
+                <div class="field">
+                    <label for="last_name">นามสกุล</label>
+                    <input id="last_name" name="last_name" type="text" maxlength="100" required>
+                </div>
+                <div class="field">
+                    <label for="department">แผนก</label>
+                    <input id="department" name="department" type="text" maxlength="100" list="department-list">
+                    <datalist id="department-list"></datalist>
+                </div>
+                <div class="field">
+                    <label for="position">ตำแหน่ง</label>
+                    <input id="position" name="position" type="text" maxlength="100">
+                </div>
+                <div class="field full">
+                    <label class="checkbox"><input id="active" name="active" type="checkbox" checked> ยังทำงานอยู่ (เอาเครื่องหมายออกเมื่อพนักงานลาออก)</label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn secondary" id="cancel-btn">ยกเลิก</button>
+                <button type="submit" class="btn" id="save-btn">บันทึก</button>
+            </div>
+        </form>
+
+        <section class="card">
+            <form id="filters" class="filters">
+                <div class="field">
+                    <label for="q">ค้นหา</label>
+                    <input id="q" name="q" type="search" placeholder="รหัส ชื่อ แผนก หรือตำแหน่ง">
+                </div>
+                <div class="field">
+                    <label for="filter-department">แผนก</label>
+                    <select id="filter-department" name="department"></select>
+                </div>
+                <div class="field">
+                    <label for="filter-active">สถานะ</label>
+                    <select id="filter-active" name="active">
+                        <option value="1">ยังทำงานอยู่</option>
+                        <option value="0">ปิดสถานะแล้ว</option>
+                        <option value="all">ทั้งหมด</option>
+                    </select>
+                </div>
+            </form>
+            <div id="table"><p class="table-message">กำลังโหลด...</p></div>
+            <div class="table-foot" id="pagination"></div>
+        </section>
+    </main>
+
+    <script src="js/common.js"></script>
+    <script src="js/pickers.js"></script>
+    <script src="js/employees.js"></script>
+</body>
+</html>

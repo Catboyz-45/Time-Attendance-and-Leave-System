@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ภาพรวม · ระบบลงเวลาและการลา</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body data-page="dashboard" class="app-loading">
+    <header id="app-header"></header>
+
+    <main class="container">
+        <div class="page-head">
+            <div>
+                <h1>ภาพรวมวันนี้</h1>
+                <div class="subtitle" id="today-label"></div>
+            </div>
+            <div class="actions">
+                <a class="btn" href="attendance.html">+ ลงเวลา</a>
+                <a class="btn secondary" href="leave.html">+ บันทึกการลา</a>
+            </div>
+        </div>
+
+        <div id="page-message" class="message" role="status"></div>
+        <div id="day-notice" class="notice hidden"></div>
+
+        <section class="stats" id="stats"></section>
+
+        <div class="grid-2">
+            <section class="card">
+                <div class="card-head">
+                    <h2>ใบลารอผลอนุมัติ</h2>
+                    <a href="history.html?tab=leave&amp;status=pending" class="small">ดูทั้งหมด</a>
+                </div>
+                <p class="small muted">เมื่อหัวหน้าอนุมัติแล้ว กด "บันทึกอนุมัติ" แล้วระบุชื่อผู้อนุมัติ</p>
+                <div id="pending-list"><p class="table-message">กำลังโหลด...</p></div>
+            </section>
+
+            <section class="card">
+                <div class="card-head">
+                    <h2>ลาวันนี้</h2>
+                </div>
+                <div id="leave-list"><p class="table-message">กำลังโหลด...</p></div>
+            </section>
+
+            <section class="card">
+                <div class="card-head">
+                    <h2>มาสายวันนี้</h2>
+                    <span class="small muted" id="late-after"></span>
+                </div>
+                <div id="late-list"><p class="table-message">กำลังโหลด...</p></div>
+            </section>
+
+            <section class="card">
+                <div class="card-head">
+                    <h2>ยังไม่ลงเวลาวันนี้</h2>
+                    <a href="attendance.html" class="small">+ ลงเวลา</a>
+                </div>
+                <div id="missing-list"><p class="table-message">กำลังโหลด...</p></div>
+            </section>
+        </div>
+    </main>
+
+    <script src="js/common.js"></script>
+    <script src="js/pickers.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>พิมพ์ใบลา · ระบบลงเวลาและการลา</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body data-page="print" class="app-loading print-page">
+    <div class="print-toolbar no-print">
+        <a class="btn secondary" href="history.html?tab=leave">กลับไปหน้ารายการ</a>
+        <button type="button" class="btn" id="print-btn">พิมพ์</button>
+    </div>
+
+    <main class="print-sheet" id="sheet">
+        <div id="page-message" class="message" role="status"></div>
+    </main>
+
+    <script src="js/common.js"></script>
+    <script src="js/print-leave.js"></script>
+</body>
+</html>

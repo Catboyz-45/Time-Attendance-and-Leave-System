@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บันทึกการลา · ระบบลงเวลาและการลา</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body data-page="leave" class="app-loading">
+    <header id="app-header"></header>
+
+    <main class="container narrow">
+        <div class="page-head">
+            <div>
+                <h1 id="page-title">บันทึกการลา</h1>
+                <div class="subtitle">บันทึกใบลาของพนักงาน และผลการอนุมัติจากหัวหน้า</div>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn hidden" id="copy-btn">ส่งให้หัวหน้า</button>
+                <a class="btn secondary hidden" id="print-link" href="#" target="_blank" rel="noopener">พิมพ์ใบลา</a>
+                <a class="btn secondary" href="history.html?tab=leave">กลับไปหน้ารายการ</a>
+            </div>
+        </div>
+
+        <div id="page-message" class="message" role="status"></div>
+
+        <form id="leave-form" class="card" novalidate>
+            <div class="form-grid">
+                <div class="field full">
+                    <label for="employee_id">พนักงาน</label>
+                    <select id="employee_id" name="employee_id" required></select>
+                </div>
+                <div class="field">
+                    <label for="leave_type">ประเภทการลา</label>
+                    <select id="leave_type" name="leave_type" required></select>
+                </div>
+                <div class="field">
+                    <span class="label">สิทธิ์วันลาปีนี้</span>
+                    <div id="balance-hint" class="muted">เลือกพนักงานเพื่อดูวันลาคงเหลือ</div>
+                </div>
+                <div class="field">
+                    <label for="start_date">วันที่เริ่มลา</label>
+                    <input id="start_date" name="start_date" type="date" required>
+                </div>
+                <div class="field">
+                    <label for="end_date">วันที่สิ้นสุดลา</label>
+                    <input id="end_date" name="end_date" type="date" required>
+                </div>
+                <div class="field full">
+                    <label class="checkbox">
+                        <input id="half_day" name="half_day" type="checkbox">
+                        ลาครึ่งวัน (เลือกได้เมื่อลาวันเดียว)
+                    </label>
+                </div>
+                <div class="field full">
+                    <label for="reason">เหตุผลการลา</label>
+                    <textarea id="reason" name="reason" maxlength="1000" required></textarea>
+                </div>
+                <div class="field">
+                    <label for="status">ผลการอนุมัติ</label>
+                    <select id="status" name="status">
+                        <option value="pending">รออนุมัติ</option>
+                        <option value="approved">อนุมัติ</option>
+                        <option value="rejected">ไม่อนุมัติ</option>
+                    </select>
+                    <span class="hint">บันทึกตามผลจริง เช่น หัวหน้าเซ็นใบลาแล้ว</span>
+                </div>
+                <div class="field">
+                    <label for="approver_name" id="approver-label">ผู้อนุมัติ</label>
+                    <input id="approver_name" name="approver_name" type="text" maxlength="100" list="approver-list" autocomplete="off"
+                        placeholder="เช่น คุณประเสริฐ (หัวหน้าฝ่ายผลิต)">
+                    <datalist id="approver-list"></datalist>
+                </div>
+                <div class="field full">
+                    <label for="status_note">หมายเหตุการอนุมัติ</label>
+                    <input id="status_note" name="status_note" type="text" maxlength="255" placeholder="เช่น มีใบรับรองแพทย์">
+                </div>
+            </div>
+            <p class="small muted" id="decided-info"></p>
+
+            <div class="form-actions">
+                <button type="button" class="btn danger hidden" id="delete-btn">ลบรายการนี้</button>
+                <button type="submit" class="btn" id="submit-btn">บันทึก</button>
+            </div>
+        </form>
+    </main>
+
+    <script src="js/common.js"></script>
+    <script src="js/pickers.js"></script>
+    <script src="js/leave.js"></script>
+</body>
+</html>

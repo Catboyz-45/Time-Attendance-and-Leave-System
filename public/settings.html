@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตั้งค่า · ระบบลงเวลาและการลา</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body data-page="settings" class="app-loading">
+    <header id="app-header"></header>
+
+    <main class="container">
+        <div class="page-head">
+            <div>
+                <h1>ตั้งค่า</h1>
+                <div class="subtitle">บัญชีของคุณ เวลางาน โควตาวันลา วันหยุด และผู้ใช้ระบบ</div>
+            </div>
+        </div>
+
+        <div id="page-message" class="message" role="status"></div>
+
+        <!-- เปลี่ยนรหัสผ่าน -->
+        <form id="password-form" class="card" novalidate>
+            <h2 id="password">เปลี่ยนรหัสผ่าน</h2>
+            <div id="password-message" class="message" role="alert"></div>
+            <div class="form-grid">
+                <div class="field full">
+                    <label for="current_password">รหัสผ่านปัจจุบัน</label>
+                    <input id="current_password" name="current_password" type="password" autocomplete="current-password">
+                </div>
+                <div class="field">
+                    <label for="new_password">รหัสผ่านใหม่</label>
+                    <input id="new_password" name="new_password" type="password" autocomplete="new-password" minlength="8">
+                    <span class="hint">อย่างน้อย 8 ตัวอักษร</span>
+                </div>
+                <div class="field">
+                    <label for="confirm_password">ยืนยันรหัสผ่านใหม่</label>
+                    <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn" id="password-btn">เปลี่ยนรหัสผ่าน</button>
+            </div>
+        </form>
+
+        <div id="other-settings">
+            <!-- เวลางานและโควตา -->
+            <form id="work-form" class="card" novalidate>
+                <h2>เวลางานและโควตาวันลา</h2>
+                <p class="small muted" id="work-readonly-note">เฉพาะผู้ดูแลระบบที่แก้ไขได้</p>
+                <div id="work-message" class="message" role="alert"></div>
+                <div class="form-grid">
+                    <div class="field full">
+                        <label for="company_name">ชื่อบริษัท / หน่วยงาน</label>
+                        <input id="company_name" name="company_name" type="text" maxlength="150" placeholder="แสดงที่หัวใบลาที่พิมพ์">
+                    </div>
+                    <div class="field">
+                        <label for="work_start_time">เวลาเข้างาน</label>
+                        <input id="work_start_time" name="work_start_time" type="time">
+                    </div>
+                    <div class="field">
+                        <label for="work_end_time">เวลาเลิกงาน</label>
+                        <input id="work_end_time" name="work_end_time" type="time">
+                    </div>
+                    <div class="field">
+                        <label for="late_grace_minutes">ผ่อนผันการมาสาย (นาที)</label>
+                        <input id="late_grace_minutes" name="late_grace_minutes" type="number" min="0" max="240" step="1">
+                        <span class="hint">เช่น 5 = เข้างานหลัง 08:35 จึงนับว่าสาย (นาทีที่สายนับจากเวลาเข้างาน)</span>
+                    </div>
+                    <div class="field">
+                        <label for="ot_min_minutes">OT ขั้นต่ำ (นาที)</label>
+                        <input id="ot_min_minutes" name="ot_min_minutes" type="number" min="0" max="240" step="1">
+                        <span class="hint">ทำงานเกินเวลาเลิกงานอย่างน้อยเท่านี้จึงนับเป็น OT</span>
+                    </div>
+                    <div class="field full">
+                        <span class="label">วันทำงาน</span>
+                        <div class="checks" id="work-days"></div>
+                    </div>
+                    <div class="field full">
+                        <span class="label">โควตาวันลาต่อปี (วันทำงาน) — เว้นว่าง = ไม่จำกัด</span>
+                        <div class="form-grid" id="quota-fields"></div>
+                        <span class="hint">ค่าเริ่มต้นตามขั้นต่ำของ พ.ร.บ.คุ้มครองแรงงาน: ลาป่วยได้ค่าจ้าง 30 วัน, ลากิจ 3 วัน, ลาพักร้อน 6 วัน (เมื่อทำงานครบ 1 ปี) ปรับตามระเบียบบริษัทได้</span>
+                    </div>
+                    <div class="field">
+                        <label for="annual_leave_min_service_months">ลาพักร้อนได้เมื่อทำงานครบ (เดือน)</label>
+                        <input id="annual_leave_min_service_months" name="annual_leave_min_service_months" type="number" min="0" max="60" step="1">
+                        <span class="hint">นับจากวันเริ่มงานของพนักงาน ปีที่ยังไม่ครบจะได้สิทธิ์ 0 วัน</span>
+                    </div>
+                    <div class="field">
+                        <label for="annual_leave_carry_over_max">สะสมวันลาพักร้อนไปปีถัดไปได้สูงสุด (วัน)</label>
+                        <input id="annual_leave_carry_over_max" name="annual_leave_carry_over_max" type="number" min="0" max="60" step="1">
+                        <span class="hint">0 = ไม่สะสม (วันที่เหลือหมดอายุสิ้นปี)</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn" id="work-btn">บันทึกการตั้งค่า</button>
+                </div>
+            </form>
+
+            <!-- วันหยุด -->
+            <section class="card">
+                <div class="card-head">
+                    <h2>วันหยุดนักขัตฤกษ์ / วันหยุดบริษัท</h2>
+                    <div class="actions">
+                        <select id="holiday-year" aria-label="ปี"></select>
+                        <button type="button" class="btn secondary" id="copy-holidays-btn">คัดลอกจากปีก่อน</button>
+                    </div>
+                </div>
+                <div id="holiday-message" class="message" role="alert"></div>
+                <form id="holiday-form" class="filters" novalidate>
+                    <div class="field">
+                        <label for="holiday-date">วันที่</label>
+                        <input id="holiday-date" name="date" type="date">
+                    </div>
+                    <div class="field">
+                        <label for="holiday-name">ชื่อวันหยุด</label>
+                        <input id="holiday-name" name="name" type="text" maxlength="100" placeholder="เช่น วันสงกรานต์">
+                    </div>
+                    <div class="field">
+                        <button type="submit" class="btn" id="holiday-btn">+ เพิ่มวันหยุด</button>
+                    </div>
+                </form>
+                <div id="holiday-table"></div>
+                <p class="small muted">วันหยุดไม่นับเป็นวันทำงาน ไม่นับเป็นวันลา และไม่นับเป็นวันขาดงานในรายงาน</p>
+            </section>
+
+            <!-- ผู้ใช้ระบบ (เฉพาะผู้ดูแลระบบ) -->
+            <section class="card hidden" id="users-card">
+                <div class="card-head">
+                    <h2>ผู้ใช้ระบบ</h2>
+                    <button type="button" class="btn" id="add-user-btn">+ เพิ่มผู้ใช้</button>
+                </div>
+                <div id="user-message" class="message" role="alert"></div>
+
+                <form id="user-form" class="card hidden" novalidate>
+                    <h2 id="user-form-title">เพิ่มผู้ใช้</h2>
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="user-username">ชื่อผู้ใช้ (ใช้ login)</label>
+                            <input id="user-username" name="username" type="text" maxlength="50" autocomplete="off">
+                        </div>
+                        <div class="field">
+                            <label for="user-display">ชื่อที่แสดง</label>
+                            <input id="user-display" name="display_name" type="text" maxlength="100">
+                        </div>
+                        <div class="field">
+                            <label for="user-role">สิทธิ์</label>
+                            <select id="user-role" name="role">
+                                <option value="hr">HR (ใช้งานทั่วไป)</option>
+                                <option value="admin">ผู้ดูแลระบบ (จัดการผู้ใช้ ตั้งค่า ดูประวัติการแก้ไข)</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="user-password" id="user-password-label">รหัสผ่านชั่วคราว</label>
+                            <input id="user-password" name="password" type="password" autocomplete="new-password">
+                            <span class="hint" id="user-password-hint">ผู้ใช้จะต้องเปลี่ยนรหัสผ่านเองตอน login ครั้งแรก</span>
+                        </div>
+                        <div class="field full">
+                            <label class="checkbox"><input id="user-active" name="active" type="checkbox" checked> เปิดใช้งานบัญชี</label>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn secondary" id="user-cancel-btn">ยกเลิก</button>
+                        <button type="submit" class="btn" id="user-save-btn">บันทึก</button>
+                    </div>
+                </form>
+
+                <div id="user-table"></div>
+            </section>
+        </div>
+    </main>
+
+    <script src="js/common.js"></script>
+    <script src="js/pickers.js"></script>
+    <script src="js/settings.js"></script>
+</body>
+</html>

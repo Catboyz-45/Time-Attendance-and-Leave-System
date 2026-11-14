@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ประวัติการลงเวลาและการลา · ระบบลงเวลาและการลา</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body data-page="attendance" class="app-loading">
+    <header id="app-header"></header>
+
+    <main class="container">
+        <div class="page-head">
+            <div>
+                <h1 id="page-title">ประวัติการลงเวลา</h1>
+                <div class="subtitle">ค้นหา กรอง แก้ไข และ export ข้อมูล</div>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn secondary" id="export-btn">Export CSV</button>
+                <a class="btn" id="add-btn" href="attendance.html">+ ลงเวลา</a>
+            </div>
+        </div>
+
+        <div id="page-message" class="message" role="status"></div>
+
+        <section class="card">
+            <div class="tabs" role="tablist">
+                <button type="button" data-tab="attendance">การลงเวลา</button>
+                <button type="button" data-tab="leave">การลา</button>
+            </div>
+
+            <form id="filters" class="filters">
+                <div class="field">
+                    <label for="q">ค้นหา</label>
+                    <input id="q" name="q" type="search" placeholder="รหัส หรือ ชื่อพนักงาน">
+                </div>
+                <div class="field">
+                    <label for="employee_id">พนักงาน</label>
+                    <select id="employee_id" name="employee_id"></select>
+                </div>
+                <div class="field">
+                    <label for="department">แผนก</label>
+                    <select id="department" name="department"></select>
+                </div>
+                <div class="field">
+                    <label for="from">ตั้งแต่วันที่</label>
+                    <input id="from" name="from" type="date">
+                </div>
+                <div class="field">
+                    <label for="to">ถึงวันที่</label>
+                    <input id="to" name="to" type="date">
+                </div>
+
+                <div class="field" data-for="leave">
+                    <label for="status">สถานะ</label>
+                    <select id="status" name="status">
+                        <option value="">ทุกสถานะ</option>
+                        <option value="pending">รออนุมัติ</option>
+                        <option value="approved">อนุมัติ</option>
+                        <option value="rejected">ไม่อนุมัติ</option>
+                    </select>
+                </div>
+                <div class="field" data-for="leave">
+                    <label for="leave_type">ประเภทการลา</label>
+                    <select id="leave_type" name="leave_type"></select>
+                </div>
+
+                <div class="field" data-for="attendance">
+                    <label class="checkbox"><input type="checkbox" name="late"> เฉพาะคนมาสาย</label>
+                    <label class="checkbox"><input type="checkbox" name="missing_out"> เฉพาะที่ยังไม่ลงเวลาออก</label>
+                    <label class="checkbox"><input type="checkbox" name="conflict"> เฉพาะที่ขัดกับใบลา</label>
+                </div>
+                <div class="field">
+                    <button type="button" class="btn secondary" id="clear-btn">ล้างตัวกรอง</button>
+                </div>
+            </form>
+
+            <div id="table"><p class="table-message">กำลังโหลด...</p></div>
+            <div class="table-foot" id="pagination"></div>
+        </section>
+    </main>
+
+    <script src="js/common.js"></script>
+    <script src="js/pickers.js"></script>
+    <script src="js/history.js"></script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+// หน้าภาพรวมวันนี้
+
+const addDaysStr = (dateStr, days) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d + days));
+    return date.toISOString().slice(0, 10);
+};
+
+const renderList = (containerId, items, emptyText, renderItem) => {
+    const container = document.getElementById(containerId);
+    if (items.length === 0) {
+        setTableMessage(container, emptyText);
+        return;
+    }
+    container.innerHTML = `<ul class="list">${items.map(renderItem).join('')}</ul>`;
+};
+
+const renderStats = (data) => {
+    const today = data.today;
+    const historyLink = (params) => `history.html${buildQuery({ tab: 'attendance', ...params })}`;
+    const percent = data.active_employees ? Math.min(100, Math.round((data.checked_in / data.active_employees) * 100)) : 0;
+    const stats = [
+        {
+            label: 'พนักงานทั้งหมด', value: data.active_employees, hint: 'ที่ยังทำงานอยู่', href: 'employees.html',
+        },
+        {
+            label: 'ลงเวลาแล้ววันนี้', value: data.checked_in, meter: percent, href: historyLink({ from: today, to: today }),
+        },
+        {
+            label: 'มาสายวันนี้',
+            value: data.late.length,
+            hint: `หลัง ${formatTime(data.late_after)} น.`,
+            href: historyLink({ from: today, to: today, late: 1 }),
+            tone: data.late.length ? 'warn' : '',
+        },
+        {
+            label: 'ยังไม่ลงเวลา',
+            value: data.is_working_day ? data.not_checked_in.total : '-',
+            hint: data.is_working_day ? 'และไม่ได้ลา' : 'วันนี้ไม่ใช่วันทำงาน',
+            tone: data.is_working_day && data.not_checked_in.total ? 'bad' : '',
+        },
+        {
+            label: 'ลาวันนี้', value: data.on_leave.length, hint: 'อนุมัติแล้ว', href: `history.html${buildQuery({ tab: 'leave', from: today, to: today, status: 'approved' })}`,
+        },
+        {
+            label: 'ใบลารอผลอนุมัติ',
+            value: data.pending_leaves.total,
+            hint: data.pending_leaves.total ? 'ต้องบันทึกผล' : 'ไม่มีค้าง',
+            href: 'history.html?tab=leave&status=pending',
+            tone: data.pending_leaves.total ? 'warn attention' : '',
+        },
+        {
+            label: 'ลืมลงเวลาออก',
+            value: data.missing_out_previous,
+            hint: '30 วันที่ผ่านมา',
+            href: historyLink({ missing_out: 1, from: addDaysStr(today, -30), to: addDaysStr(today, -1) }),
+            tone: data.missing_out_previous ? 'warn' : '',
+        },
+    ];
+
+    document.getElementById('stats').innerHTML = stats.map((stat) => {
+        const tag = stat.href ? 'a' : 'div';
+        const href = stat.href ? ` href="${escapeHtml(stat.href)}"` : '';
+        const extra = stat.meter !== undefined
+            ? `<span class="meter" title="${stat.meter}% ของพนักงาน"><span style="width:${stat.meter}%"></span></span>`
+            : `<div class="hint">${escapeHtml(stat.hint || '')}</div>`;
+        return `<${tag} class="stat ${stat.tone || ''}"${href}>
+            <div class="label">${escapeHtml(stat.label)}</div>
+            <div class="value">${escapeHtml(stat.value)}</div>
+            ${extra}
+        </${tag}>`;
+    }).join('');
+};
+
+let pendingById = new Map();
+
+const renderPending = (pending) => {
+    pendingById = new Map(pending.items.map((leave) => [String(leave.id), leave]));
+    renderList('pending-list', pending.items, 'ไม่มีใบลาที่รอผลอนุมัติ', (leave) => `
+        <li>
+            <div>
+                <div>${escapeHtml(employeeLabel(leave))}</div>
+                <div class="sub">${escapeHtml(leave.leave_type)}${leave.half_day ? ' (ครึ่งวัน)' : ''} · ${escapeHtml(formatDateRange(leave.start_date, leave.end_date))}</div>
+                <div class="sub">${escapeHtml(leave.reason)}</div>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn secondary sm" data-copy="${leave.id}">ส่งหัวหน้า</button>
+                <button type="button" class="btn success sm" data-approve="${leave.id}" data-status="approved">บันทึกอนุมัติ</button>
+                <button type="button" class="btn secondary sm" data-approve="${leave.id}" data-status="rejected">ไม่อนุมัติ</button>
+            </div>
+        </li>`);
+};
+
+const load = async () => {
+    const data = await api('/dashboard');
+
+    document.getElementById('today-label').textContent = formatThaiDate(data.today, {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
+    const notice = document.getElementById('day-notice');
+    if (!data.is_working_day) {
+        notice.textContent = data.holiday_name ? `วันนี้เป็นวันหยุด: ${data.holiday_name}` : 'วันนี้ไม่ใช่วันทำงาน';
+        notice.classList.remove('hidden');
+    } else {
+        notice.classList.add('hidden');
+    }
+    document.getElementById('late-after').textContent = `สายเมื่อเข้างานหลัง ${formatTime(data.late_after)}`;
+
+    renderStats(data);
+    renderPending(data.pending_leaves);
+
+    renderList('leave-list', data.on_leave, 'วันนี้ไม่มีพนักงานลา', (leave) => `
+        <li>
+            <div>
+                <div>${escapeHtml(employeeLabel(leave))}</div>
+                <div class="sub">${escapeHtml(leave.department || '')}</div>
+            </div>
+            <span class="badge">${escapeHtml(leave.leave_type)}${leave.half_day ? ' ครึ่งวัน' : ''}</span>
+        </li>`);
+
+    renderList('late-list', data.late, 'วันนี้ไม่มีคนมาสาย', (row) => `
+        <li>
+            <div>
+                <div>${escapeHtml(employeeLabel(row))}</div>
+                <div class="sub">${escapeHtml(row.department || '')}</div>
+            </div>
+            <span class="badge late">เข้างาน ${escapeHtml(formatTime(row.time_in))} · สาย ${escapeHtml(formatMinutes(row.late_minutes))}</span>
+        </li>`);
+
+    const missing = data.not_checked_in;
+    if (!data.is_working_day) {
+        setTableMessage(document.getElementById('missing-list'), 'วันนี้ไม่ใช่วันทำงาน');
+    } else {
+        renderList('missing-list', missing.items, 'ทุกคนลงเวลาหรือลาแล้ว', (row) => `
+            <li>
+                <div>
+                    <div>${escapeHtml(employeeLabel(row))}</div>
+                    <div class="sub">${escapeHtml(row.department || '')}</div>
+                </div>
+                <a class="btn secondary sm" href="attendance.html${buildQuery({ employee_id: row.employee_id })}">ลงเวลา</a>
+            </li>`);
+        if (missing.total > missing.items.length) {
+            document.getElementById('missing-list').insertAdjacentHTML(
+                'beforeend',
+                `<p class="small muted">และอีก ${missing.total - missing.items.length} คน</p>`,
+            );
+        }
+    }
+};
+
+onAppReady(async () => {
+    await load();
+
+    // ปุ่มบันทึกผลอนุมัติ/ไม่อนุมัติ (ระบุชื่อผู้อนุมัติในกล่องที่เปิดขึ้นมา)
+    document.getElementById('pending-list').addEventListener('click', async (event) => {
+        const copyButton = event.target.closest('button[data-copy]');
+        if (copyButton) {
+            await withBusy(copyButton, async () => {
+                try {
+                    await openApprovalMessage(copyButton.dataset.copy);
+                } catch (error) {
+                    showError(error);
+                }
+            });
+            return;
+        }
+
+        const button = event.target.closest('button[data-approve]');
+        if (!button) return;
+        const leave = pendingById.get(button.dataset.approve);
+        if (!leave) return;
+        await withBusy(button, async () => {
+            if (await recordDecision(leave, button.dataset.status)) await load();
+        });
+    });
+});

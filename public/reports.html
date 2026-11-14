@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายงาน · ระบบลงเวลาและการลา</title>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body data-page="reports" class="app-loading">
+    <header id="app-header"></header>
+
+    <main class="container">
+        <div class="page-head">
+            <div>
+                <h1>รายงาน</h1>
+                <div class="subtitle">สรุปการมาทำงานรายเดือน และวันลาคงเหลือรายปี สำหรับส่งฝ่ายเงินเดือน</div>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn" id="export-btn">Export CSV</button>
+            </div>
+        </div>
+
+        <div id="page-message" class="message" role="status"></div>
+
+        <section class="card">
+            <div class="tabs" role="tablist">
+                <button type="button" data-tab="monthly" class="active">สรุปรายเดือน</button>
+                <button type="button" data-tab="balance">วันลาคงเหลือ</button>
+            </div>
+
+            <form id="filters" class="filters">
+                <div class="field" data-for="monthly">
+                    <label for="month">เดือน</label>
+                    <input id="month" name="month" type="month">
+                </div>
+                <div class="field hidden" data-for="balance">
+                    <label for="year">ปี</label>
+                    <select id="year" name="year"></select>
+                </div>
+                <div class="field">
+                    <label for="department">แผนก</label>
+                    <select id="department" name="department"></select>
+                </div>
+            </form>
+
+            <p class="small muted" id="report-note"></p>
+            <div id="table"><p class="table-message">กำลังโหลด...</p></div>
+        </section>
+    </main>
+
+    <script src="js/common.js"></script>
+    <script src="js/pickers.js"></script>
+    <script src="js/reports.js"></script>
+</body>
+</html>

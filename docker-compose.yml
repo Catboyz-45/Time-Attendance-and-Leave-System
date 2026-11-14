@@ -1,40 +1,89 @@
-version: '3.7'
+# รันทั้งระบบ:  cp .env.example .env  (แก้รหัสผ่าน)  แล้ว  docker compose up -d --build
+#   หน้าเว็บ      -> http://localhost:3000  (เครื่องอื่นในเครือข่ายใช้ http://<IP เครื่องนี้>:3000)
+#   MySQL        -> 127.0.0.1:8840 (เปิดให้เครื่องนี้เท่านั้น สำหรับรันเซิร์ฟเวอร์เองตอนพัฒนา)
+#   phpMyAdmin   -> docker compose --profile tools up -d  แล้วเปิด http://localhost:8841 (เครื่องนี้เท่านั้น)
 services:
   db:
-    image: mysql:5.7
-    container_name: mysql_db_840
-    command: --default-authentication-plugin=mysql_native_password
+    image: mysql:8.0
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?กรุณาตั้งค่า DB_ROOT_PASSWORD ในไฟล์ .env (cp .env.example .env)}
       MYSQL_DATABASE: webdb
+      MYSQL_USER: ${DB_USER:-tals}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?กรุณาตั้งค่า DB_PASSWORD ในไฟล์ .env}
+      TZ: Asia/Bangkok
     ports:
-      - "8840:3306"
+      - "127.0.0.1:8840:3306"
     volumes:
-      - mysql_data_840:/var/lib/mysql
-    networks:
-      - weblab840
-    restart: always
+      - mysql_data:/var/lib/mysql
+      # สร้างตารางให้อัตโนมัติตอนสร้างฐานข้อมูลครั้งแรก (volume ยังว่าง)
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
 
+  app:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-tals}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: webdb
+      SESSION_SECRET: ${SESSION_SECRET:?กรุณาตั้งค่า SESSION_SECRET ในไฟล์ .env}
+      SESSION_HOURS: ${SESSION_HOURS:-8}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      TZ: Asia/Bangkok
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # สำรองฐานข้อมูลอัตโนมัติทุกวัน ไฟล์อยู่ในโฟลเดอร์ backups/ (ใช้ได้ทั้ง Windows/macOS/Linux)
+  #   สำรองทันที: docker compose exec backup backup now
+  #   กู้คืน:     docker compose exec backup backup restore <ชื่อไฟล์>
+  backup:
+    image: mysql:8.0
+    entrypoint: ["bash", "/scripts/docker-backup.sh"]
+    command: ["loop"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      BACKUP_TIME: ${BACKUP_TIME:-02:00}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-30}
+      TZ: Asia/Bangkok
+      # ให้เรียกคำสั่ง backup ได้เลย (สคริปต์อยู่ใน /scripts)
+      PATH: /scripts:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    volumes:
+      - ./backups:/backups
+      # mount ทั้งโฟลเดอร์ (ถ้า mount ทีละไฟล์ แก้ไฟล์แล้วคอนเทนเนอร์จะมองไม่เห็นไฟล์ใหม่)
+      - ./scripts:/scripts:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # เครื่องมือดูฐานข้อมูล: ไม่เปิดโดยอัตโนมัติ และต้อง login ด้วยบัญชี MySQL เอง
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    container_name: phpmyadmin_840
+    image: phpmyadmin:5.2
+    profiles: ["tools"]
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
-      PMA_USER: root
-      PMA_PASSWORD: root
     ports:
-      - "8841:80"
+      - "127.0.0.1:8841:80"
     depends_on:
       - db
-    networks:
-      - weblab840
-    restart: always
 
-networks:
-  weblab840:
-    driver: bridge
-    
 volumes:
-  mysql_data_840:
-    driver: local
+  mysql_data:
