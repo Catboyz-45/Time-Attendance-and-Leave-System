@@ -9,7 +9,15 @@ const validateLeave = (data) => {
     if (data.start_date && data.end_date && data.end_date < data.start_date) errors.push('วันที่สิ้นสุดลาต้องไม่ก่อนวันที่เริ่มลา');
     if (data.half_day && data.start_date !== data.end_date) errors.push('ลาครึ่งวันได้เฉพาะเมื่อลาวันเดียว');
     if (!data.reason) errors.push('กรุณากรอกเหตุผลการลา');
+    if (data.status !== 'pending' && !data.approver_name) errors.push('กรุณาระบุผู้อนุมัติ (เช่น หัวหน้างานที่เซ็นใบลา)');
     return errors;
+};
+
+// ผู้อนุมัติต้องกรอกเมื่อบันทึกผลว่าอนุมัติ/ไม่อนุมัติ
+const syncApproverField = (form) => {
+    const required = form.elements.status.value !== 'pending';
+    form.elements.approver_name.required = required;
+    document.getElementById('approver-label').textContent = required ? 'ผู้อนุมัติ *' : 'ผู้อนุมัติ (ไม่บังคับ)';
 };
 
 // แสดงวันลาที่ใช้ไปและคงเหลือของพนักงานที่เลือก (ตามปีของวันที่เริ่มลา)
@@ -72,6 +80,8 @@ onAppReady(async () => {
     form.elements.end_date.addEventListener('change', syncHalfDay);
     form.elements.employee_id.addEventListener('change', () => updateBalanceHint(form, existing));
     form.elements.leave_type.addEventListener('change', () => updateBalanceHint(form, existing));
+    form.elements.status.addEventListener('change', () => syncApproverField(form));
+    fillApproverList(document.getElementById('approver-list')).catch(() => {});
 
     if (id) {
         document.getElementById('page-title').textContent = 'แก้ไขการลา';
@@ -85,11 +95,12 @@ onAppReady(async () => {
             reason: existing.reason,
             status: existing.status,
             status_note: existing.status_note,
+            approver_name: existing.approver_name,
         });
         syncHalfDay();
         halfDay.checked = existing.half_day;
         if (existing.decided_at) {
-            document.getElementById('decided-info').textContent = `${LEAVE_STATUS_LABELS[existing.status]}โดย ${existing.decided_by_name || '-'} เมื่อ ${formatDateTime(existing.decided_at)}`;
+            document.getElementById('decided-info').textContent = `บันทึกผล "${LEAVE_STATUS_LABELS[existing.status]}" โดย ${existing.decided_by_name || '-'} (HR) เมื่อ ${formatDateTime(existing.decided_at)}`;
         }
 
         const deleteButton = document.getElementById('delete-btn');
@@ -110,6 +121,7 @@ onAppReady(async () => {
         fillEmployeeSelect(form.elements.employee_id, employees, { selected: getParam('employee_id') || '' });
         syncHalfDay();
     }
+    syncApproverField(form);
     updateBalanceHint(form, existing);
 
     form.addEventListener('submit', async (event) => {

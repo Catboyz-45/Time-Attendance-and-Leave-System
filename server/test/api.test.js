@@ -168,19 +168,34 @@ test('การลา: นับเฉพาะวันทำงาน, ห้�
   });
   assert.equal(acrossHoliday.data.days, 2, 'วันที่ 5 เป็นวันหยุด จึงนับแค่ 2 วัน');
 
-  const approve = await admin('PATCH', `/leave_requests/${state.sickLeave}/status`, { status: 'approved', status_note: 'มีใบรับรองแพทย์' });
+  // HR บันทึกผลแทนหัวหน้า: ต้องระบุผู้อนุมัติ
+  const noApprover = await admin('PATCH', `/leave_requests/${state.sickLeave}/status`, { status: 'approved' });
+  assert.equal(noApprover.status, 400);
+
+  const approve = await admin('PATCH', `/leave_requests/${state.sickLeave}/status`, {
+    status: 'approved', approver_name: 'คุณประเสริฐ (หัวหน้าฝ่าย)', status_note: 'มีใบรับรองแพทย์',
+  });
   assert.equal(approve.status, 200, JSON.stringify(approve.data));
   const approved = await admin('GET', `/leave_requests/${state.sickLeave}`);
   assert.equal(approved.data.status, 'approved');
-  assert.ok(approved.data.decided_by_name);
+  assert.equal(approved.data.approver_name, 'คุณประเสริฐ (หัวหน้าฝ่าย)');
+  assert.ok(approved.data.decided_by_name, 'ต้องบันทึกว่า HR คนไหนเป็นผู้บันทึกผล');
+
+  const approvers = await admin('GET', '/leave_requests/approvers');
+  assert.ok(approvers.data.includes('คุณประเสริฐ (หัวหน้าฝ่าย)'));
+
+  const createWithoutApprover = await admin('POST', '/leave_requests', {
+    employee_id: state.a, leave_type: 'ลากิจ', reason: 'ไปธนาคาร', start_date: '2025-03-12', end_date: '2025-03-12', status: 'approved',
+  });
+  assert.equal(createWithoutApprover.status, 400);
 
   const halfDay = await admin('POST', '/leave_requests', {
-    employee_id: state.a, leave_type: 'ลากิจ', reason: 'ไปธนาคาร', start_date: '2025-03-12', end_date: '2025-03-12', half_day: true, status: 'approved',
+    employee_id: state.a, leave_type: 'ลากิจ', reason: 'ไปธนาคาร', start_date: '2025-03-12', end_date: '2025-03-12', half_day: true, status: 'approved', approver_name: 'หัวหน้าทดสอบ',
   });
   assert.equal(halfDay.data.days, 0.5);
 
   const overQuota = await admin('POST', '/leave_requests', {
-    employee_id: state.a, leave_type: 'ลากิจ', reason: 'ธุระที่ต่างจังหวัด', start_date: '2025-03-17', end_date: '2025-03-20', status: 'approved',
+    employee_id: state.a, leave_type: 'ลากิจ', reason: 'ธุระที่ต่างจังหวัด', start_date: '2025-03-17', end_date: '2025-03-20', status: 'approved', approver_name: 'หัวหน้าทดสอบ',
   });
   assert.equal(overQuota.status, 201);
   assert.equal(overQuota.data.days, 4);

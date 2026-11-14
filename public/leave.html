@@ -13,7 +13,7 @@
         <div class="page-head">
             <div>
                 <h1 id="page-title">บันทึกการลา</h1>
-                <div class="subtitle">บันทึกคำขอลาของพนักงานและผลการอนุมัติ</div>
+                <div class="subtitle">บันทึกใบลาของพนักงาน และผลการอนุมัติจากหัวหน้า</div>
             </div>
             <div class="actions">
                 <a class="btn secondary" href="history.html?tab=leave">กลับไปหน้ารายการ</a>
@@ -61,8 +61,15 @@
                         <option value="approved">อนุมัติ</option>
                         <option value="rejected">ไม่อนุมัติ</option>
                     </select>
+                    <span class="hint">บันทึกตามผลจริง เช่น หัวหน้าเซ็นใบลาแล้ว</span>
                 </div>
                 <div class="field">
+                    <label for="approver_name" id="approver-label">ผู้อนุมัติ</label>
+                    <input id="approver_name" name="approver_name" type="text" maxlength="100" list="approver-list" autocomplete="off"
+                        placeholder="เช่น คุณประเสริฐ (หัวหน้าฝ่ายผลิต)">
+                    <datalist id="approver-list"></datalist>
+                </div>
+                <div class="field full">
                     <label for="status_note">หมายเหตุการอนุมัติ</label>
                     <input id="status_note" name="status_note" type="text" maxlength="255" placeholder="เช่น มีใบรับรองแพทย์">
                 </div>

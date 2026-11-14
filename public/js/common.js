@@ -323,6 +323,97 @@ const fillOptions = (select, items, placeholder) => {
         + items.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join('');
 };
 
+// ===================== บันทึกผลการอนุมัติการลา =====================
+// การอนุมัติเกิดนอกระบบ (หัวหน้าเซ็นใบลา/ตอบใน LINE) HR เป็นผู้บันทึกผลและระบุว่าใครอนุมัติ
+
+let approversCache = null;
+
+// รายชื่อผู้อนุมัติที่เคยบันทึก ใช้เป็นตัวเลือกใน <datalist>
+const loadApprovers = async () => {
+    if (!approversCache) approversCache = await api('/leave_requests/approvers');
+    return approversCache;
+};
+
+const fillApproverList = async (datalist) => {
+    const names = await loadApprovers();
+    datalist.innerHTML = names.map((name) => `<option value="${escapeHtml(name)}"></option>`).join('');
+};
+
+// เปิดกล่องบันทึกผล คืนค่า { approver_name, status_note } หรือ null ถ้ากดยกเลิก
+const openDecisionDialog = async ({ status, leave }) => {
+    const approve = status === 'approved';
+    const dialog = document.createElement('dialog');
+    dialog.className = 'dialog';
+    dialog.innerHTML = `
+        <form method="dialog" novalidate>
+            <h2>${approve ? 'บันทึกผล: อนุมัติ' : 'บันทึกผล: ไม่อนุมัติ'}</h2>
+            <p class="muted small">${escapeHtml(employeeLabel(leave))} · ${escapeHtml(leave.leave_type)}${leave.half_day ? ' (ครึ่งวัน)' : ''}
+                · ${escapeHtml(formatDateRange(leave.start_date, leave.end_date))}</p>
+            <div class="message" data-role="error"></div>
+            <div class="field">
+                <label for="dialog-approver">ผู้อนุมัติ (เช่น หัวหน้างานที่เซ็นใบลา)</label>
+                <input id="dialog-approver" name="approver_name" type="text" maxlength="100" list="dialog-approvers" autocomplete="off" required>
+                <datalist id="dialog-approvers"></datalist>
+            </div>
+            <div class="field">
+                <label for="dialog-note">${approve ? 'หมายเหตุ (ไม่บังคับ)' : 'เหตุผลที่ไม่อนุมัติ (ไม่บังคับ)'}</label>
+                <input id="dialog-note" name="status_note" type="text" maxlength="255" placeholder="${approve ? 'เช่น มีใบรับรองแพทย์' : 'เช่น ช่วงปิดงบ'}">
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn secondary" value="cancel" data-role="cancel">ยกเลิก</button>
+                <button type="submit" class="btn ${approve ? 'success' : 'danger'}" value="ok">บันทึกผล</button>
+            </div>
+        </form>`;
+    document.body.appendChild(dialog);
+
+    const form = dialog.querySelector('form');
+    const approverInput = form.elements.approver_name;
+    approverInput.value = leave.approver_name || '';
+    fillApproverList(dialog.querySelector('datalist')).catch(() => {});
+
+    return new Promise((resolve) => {
+        let result = null;
+        form.addEventListener('submit', (event) => {
+            const values = formValues(form);
+            if (!values.approver_name) {
+                event.preventDefault();
+                showMessage(dialog.querySelector('[data-role=error]'), 'danger', 'กรุณาระบุผู้อนุมัติ');
+                approverInput.focus();
+                return;
+            }
+            result = { approver_name: values.approver_name, status_note: values.status_note };
+        });
+        dialog.querySelector('[data-role=cancel]').addEventListener('click', () => dialog.close());
+        dialog.addEventListener('close', () => {
+            dialog.remove();
+            if (result) approversCache = null; // มีชื่อใหม่ ให้โหลดรายชื่อใหม่ครั้งหน้า
+            resolve(result);
+        });
+        dialog.showModal();
+        approverInput.focus();
+    });
+};
+
+// บันทึกผลอนุมัติจากปุ่มในรายการ แล้วแสดงข้อความ (คืนค่า true เมื่อบันทึกสำเร็จ)
+const recordDecision = async (leave, status) => {
+    const decision = await openDecisionDialog({ status, leave });
+    if (!decision) return false;
+    try {
+        const result = await api(`/leave_requests/${leave.id}/status`, {
+            method: 'PATCH', body: { status, ...decision },
+        });
+        if (result.warnings && result.warnings.length > 0) {
+            showPageMessage('warning', 'บันทึกผลแล้ว แต่มีข้อควรระวัง', result.warnings);
+        } else {
+            showPageMessage('success', `บันทึกผล "${LEAVE_STATUS_LABELS[status]}" โดย ${decision.approver_name} เรียบร้อย`);
+        }
+        return true;
+    } catch (error) {
+        showError(error);
+        return false;
+    }
+};
+
 // ===================== ตารางและการแบ่งหน้า =====================
 
 const setTableMessage = (container, message, isError = false) => {

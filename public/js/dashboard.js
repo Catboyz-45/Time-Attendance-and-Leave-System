@@ -29,7 +29,7 @@ const renderStats = (data) => {
         },
         { label: 'ลาวันนี้', value: data.on_leave.length, href: `history.html${buildQuery({ tab: 'leave', from: today, to: today, status: 'approved' })}` },
         {
-            label: 'คำขอลารออนุมัติ', value: data.pending_leaves.total, href: 'history.html?tab=leave&status=pending', tone: data.pending_leaves.total ? 'warn' : '',
+            label: 'ใบลารอผลอนุมัติ', value: data.pending_leaves.total, href: 'history.html?tab=leave&status=pending', tone: data.pending_leaves.total ? 'warn' : '',
         },
         {
             label: 'ลืมลงเวลาออก (30 วัน)',
@@ -49,8 +49,11 @@ const renderStats = (data) => {
     }).join('');
 };
 
+let pendingById = new Map();
+
 const renderPending = (pending) => {
-    renderList('pending-list', pending.items, 'ไม่มีคำขอลาที่รออนุมัติ', (leave) => `
+    pendingById = new Map(pending.items.map((leave) => [String(leave.id), leave]));
+    renderList('pending-list', pending.items, 'ไม่มีใบลาที่รอผลอนุมัติ', (leave) => `
         <li>
             <div>
                 <div>${escapeHtml(employeeLabel(leave))}</div>
@@ -58,7 +61,7 @@ const renderPending = (pending) => {
                 <div class="sub">${escapeHtml(leave.reason)}</div>
             </div>
             <div class="actions">
-                <button type="button" class="btn success sm" data-approve="${leave.id}" data-status="approved">อนุมัติ</button>
+                <button type="button" class="btn success sm" data-approve="${leave.id}" data-status="approved">บันทึกอนุมัติ</button>
                 <button type="button" class="btn secondary sm" data-approve="${leave.id}" data-status="rejected">ไม่อนุมัติ</button>
             </div>
         </li>`);
@@ -124,29 +127,14 @@ const load = async () => {
 onAppReady(async () => {
     await load();
 
-    // ปุ่มอนุมัติ/ไม่อนุมัติ
+    // ปุ่มบันทึกผลอนุมัติ/ไม่อนุมัติ (ระบุชื่อผู้อนุมัติในกล่องที่เปิดขึ้นมา)
     document.getElementById('pending-list').addEventListener('click', async (event) => {
         const button = event.target.closest('button[data-approve]');
         if (!button) return;
-        const approve = button.dataset.status === 'approved';
-        const note = window.prompt(approve ? 'หมายเหตุการอนุมัติ (ไม่บังคับ)' : 'เหตุผลที่ไม่อนุมัติ (ไม่บังคับ)', '');
-        if (note === null) return;
-
+        const leave = pendingById.get(button.dataset.approve);
+        if (!leave) return;
         await withBusy(button, async () => {
-            try {
-                const result = await api(`/leave_requests/${button.dataset.approve}/status`, {
-                    method: 'PATCH',
-                    body: { status: button.dataset.status, status_note: note },
-                });
-                if (result.warnings && result.warnings.length > 0) {
-                    showPageMessage('warning', 'บันทึกแล้ว แต่มีข้อควรระวัง', result.warnings);
-                } else {
-                    showPageMessage('success', result.message);
-                }
-                await load();
-            } catch (error) {
-                showError(error);
-            }
+            if (await recordDecision(leave, button.dataset.status)) await load();
         });
     });
 });

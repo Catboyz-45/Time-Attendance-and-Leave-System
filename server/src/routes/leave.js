@@ -1,4 +1,6 @@
-// คำขอลา: บันทึก, อนุมัติ/ไม่อนุมัติ, นับวันลาเฉพาะวันทำงาน, เตือนเมื่อเกินโควตา (ลบแบบ soft delete)
+// คำขอลา: บันทึก, บันทึกผลอนุมัติ, นับวันลาเฉพาะวันทำงาน, เตือนเมื่อเกินโควตา (ลบแบบ soft delete)
+// การอนุมัติเกิดนอกระบบ (หัวหน้าเซ็นใบลา) HR เป็นผู้บันทึกผล:
+//   approver_name = ผู้อนุมัติจริง, decided_by = บัญชี HR ที่บันทึกผล
 const express = require('express');
 const { pool } = require('../db');
 const { logAudit, diff } = require('../audit');
@@ -20,7 +22,7 @@ const SQL_NOW = { toSqlString: () => 'NOW()' };
 
 const SELECT_SQL = `
   SELECT l.id, l.employee_id, l.leave_type, l.start_date, l.end_date, l.half_day, l.reason,
-         l.status, l.status_note, l.decided_at, l.created_at, l.updated_at,
+         l.status, l.status_note, l.approver_name, l.decided_at, l.created_at, l.updated_at,
          e.employee_code, e.first_name, e.last_name, e.department,
          u.display_name AS decided_by_name
   FROM leave_requests l
@@ -66,6 +68,17 @@ const quotaWarnings = async (leave, days, settings, excludeId) => {
   return [];
 };
 
+// เมื่อบันทึกผลว่าอนุมัติ/ไม่อนุมัติ ต้องระบุว่าใครเป็นผู้อนุมัติจริง (HR เป็นแค่ผู้บันทึก)
+const validateApprover = (status, approverName) => {
+  const errors = [];
+  const name = optionalText(approverName);
+  if ((status === 'approved' || status === 'rejected') && !name) {
+    errors.push('กรุณาระบุผู้อนุมัติ (เช่น หัวหน้างานที่เซ็นใบลา)');
+  }
+  if (name && name.length > 100) errors.push('ชื่อผู้อนุมัติต้องไม่เกิน 100 ตัวอักษร');
+  return errors;
+};
+
 const validateLeave = async (body = {}, settings, excludeId = 0) => {
   const errors = [];
 
@@ -100,6 +113,7 @@ const validateLeave = async (body = {}, settings, excludeId = 0) => {
   if (isFilled(body.status_note) && String(body.status_note).trim().length > 255) {
     errors.push('หมายเหตุการอนุมัติต้องไม่เกิน 255 ตัวอักษร');
   }
+  errors.push(...validateApprover(status, body.approver_name));
 
   const data = {
     employee_id: Number(body.employee_id),
@@ -110,6 +124,7 @@ const validateLeave = async (body = {}, settings, excludeId = 0) => {
     reason: optionalText(body.reason),
     status,
     status_note: optionalText(body.status_note),
+    approver_name: optionalText(body.approver_name),
   };
 
   let days = 0;
@@ -184,6 +199,16 @@ router.get('/', asyncHandler(async (req, res) => {
   });
 }));
 
+// รายชื่อผู้อนุมัติที่เคยบันทึกไว้ (ใช้เป็นตัวเลือกในช่องผู้อนุมัติ ไม่ต้องพิมพ์ใหม่ทุกครั้ง)
+router.get('/approvers', asyncHandler(async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT approver_name, COUNT(*) AS uses FROM leave_requests
+     WHERE approver_name IS NOT NULL AND approver_name <> '' AND deleted_at IS NULL
+     GROUP BY approver_name ORDER BY uses DESC, approver_name LIMIT 200`,
+  );
+  res.json(rows.map((row) => row.approver_name));
+}));
+
 router.get('/:id', asyncHandler(async (req, res) => {
   res.json(await getLeave(parseId(req.params.id, 'ไม่พบข้อมูลคำขอลา'), await getSettings()));
 }));
@@ -227,22 +252,24 @@ router.put('/:id', asyncHandler(async (req, res) => {
   res.json({ message: 'แก้ไขคำขอลาเรียบร้อย', days, warnings });
 }));
 
-// เปลี่ยนเฉพาะสถานะ (ปุ่มอนุมัติ/ไม่อนุมัติจากหน้าภาพรวมและหน้าประวัติ)
+// บันทึกเฉพาะผลการอนุมัติ (ปุ่ม "บันทึกผล" จากหน้าภาพรวมและหน้าประวัติ)
 router.patch('/:id/status', asyncHandler(async (req, res) => {
   const id = parseId(req.params.id, 'ไม่พบข้อมูลคำขอลา');
   const settings = await getSettings();
   const before = await getLeave(id, settings);
   const status = req.body.status;
   const statusNote = optionalText(req.body.status_note);
+  const approverName = optionalText(req.body.approver_name);
 
   const errors = [];
   if (!LEAVE_STATUSES.includes(status)) errors.push('สถานะไม่ถูกต้อง');
   if (statusNote && statusNote.length > 255) errors.push('หมายเหตุการอนุมัติต้องไม่เกิน 255 ตัวอักษร');
+  errors.push(...validateApprover(status, approverName));
   if (errors.length > 0) throw badRequest(errors);
 
   // ถ้าเปลี่ยนจาก "ไม่อนุมัติ" กลับมา ต้องตรวจว่าไม่ซ้อนกับรายการอื่น
   if (before.status === 'rejected' && status !== 'rejected') {
-    const check = await validateLeave({ ...before, status }, settings, id);
+    const check = await validateLeave({ ...before, status, approver_name: approverName }, settings, id);
     if (check.errors.length > 0) throw badRequest(check.errors);
   }
 
@@ -250,6 +277,7 @@ router.patch('/:id/status', asyncHandler(async (req, res) => {
   await pool.query('UPDATE leave_requests SET ? WHERE id = ?', [{
     status,
     status_note: statusNote,
+    approver_name: approverName,
     ...decisionFields(status, before.status, req.user.id),
     updated_by: req.user.id,
   }, id]);
@@ -257,7 +285,10 @@ router.patch('/:id/status', asyncHandler(async (req, res) => {
     action: 'status',
     entity: 'leave',
     entityId: id,
-    details: diff({ status: before.status, status_note: before.status_note }, { status, status_note: statusNote }),
+    details: diff(
+      { status: before.status, approver_name: before.approver_name, status_note: before.status_note },
+      { status, approver_name: approverName, status_note: statusNote },
+    ),
   });
   res.json({ message: 'บันทึกผลการอนุมัติเรียบร้อย', warnings });
 }));

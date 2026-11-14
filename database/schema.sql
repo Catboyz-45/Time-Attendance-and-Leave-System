@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS `attendance` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- คำขอลา (สถานะ: pending รออนุมัติ / approved อนุมัติ / rejected ไม่อนุมัติ)
+-- การอนุมัติเกิดนอกระบบ (เช่น หัวหน้าเซ็นใบลา) HR เป็นผู้บันทึกผล:
+--   approver_name = ผู้อนุมัติจริง (เช่น หัวหน้างาน), decided_by = บัญชี HR ที่บันทึกผล
 CREATE TABLE IF NOT EXISTS `leave_requests` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `employee_id` INT NOT NULL,
@@ -77,6 +79,7 @@ CREATE TABLE IF NOT EXISTS `leave_requests` (
   `reason` TEXT NOT NULL,
   `status` ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
   `status_note` VARCHAR(255) NULL DEFAULT NULL,
+  `approver_name` VARCHAR(100) NULL DEFAULT NULL,
   `decided_by` INT NULL DEFAULT NULL,
   `decided_at` DATETIME NULL DEFAULT NULL,
   `created_by` INT NULL DEFAULT NULL,

@@ -2,6 +2,7 @@
 const config = require('./src/config');
 const { pool } = require('./src/db');
 const { ensureAdminUser } = require('./src/auth');
+const { runMigrations } = require('./src/migrate');
 const app = require('./src/app');
 
 const waitForDatabase = async (retries = 30) => {
@@ -20,6 +21,7 @@ const waitForDatabase = async (retries = 30) => {
 const start = async () => {
   await waitForDatabase();
   console.log('connected to MySQL');
+  await runMigrations();
   await ensureAdminUser();
   app.listen(config.port, () => {
     console.log(`http server is running on http://localhost:${config.port}`);

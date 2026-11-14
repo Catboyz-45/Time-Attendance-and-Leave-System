@@ -55,22 +55,23 @@ const TABS = {
                 <td><div class="reason">${escapeHtml(row.reason)}</div></td>
                 <td>
                     ${statusBadge(row.status)}
+                    ${row.approver_name && row.status !== 'pending' ? `<div class="approver">โดย ${escapeHtml(row.approver_name)}</div>` : ''}
                     ${row.status_note ? `<div class="small muted">${escapeHtml(row.status_note)}</div>` : ''}
                 </td>
                 <td class="actions-cell">
                     ${row.status === 'pending' ? `
-                        <button type="button" class="btn success sm" data-status="approved" data-id="${escapeHtml(row.id)}">อนุมัติ</button>
+                        <button type="button" class="btn success sm" data-status="approved" data-id="${escapeHtml(row.id)}">บันทึกอนุมัติ</button>
                         <button type="button" class="btn secondary sm" data-status="rejected" data-id="${escapeHtml(row.id)}">ไม่อนุมัติ</button>` : ''}
                     <a class="btn secondary sm" href="leave.html?id=${encodeURIComponent(row.id)}">แก้ไข</a>
                     <button type="button" class="btn danger sm" data-delete="${escapeHtml(row.id)}"
                         data-label="${escapeHtml(`${employeeLabel(row)} (${formatDateRange(row.start_date, row.end_date)})`)}">ลบ</button>
                 </td>
             </tr>`,
-        csvHeaders: ['วันที่เริ่มลา', 'วันที่สิ้นสุดลา', 'รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'แผนก', 'ประเภทการลา', 'ครึ่งวัน', 'จำนวนวัน', 'เหตุผล', 'สถานะ', 'หมายเหตุการอนุมัติ', 'ผู้อนุมัติ'],
+        csvHeaders: ['วันที่เริ่มลา', 'วันที่สิ้นสุดลา', 'รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'แผนก', 'ประเภทการลา', 'ครึ่งวัน', 'จำนวนวัน', 'เหตุผล', 'สถานะ', 'ผู้อนุมัติ', 'หมายเหตุการอนุมัติ', 'บันทึกผลโดย (HR)'],
         csvRow: (row) => [
             row.start_date, row.end_date, row.employee_code, row.first_name, row.last_name, row.department || '',
             row.leave_type, row.half_day ? 'ใช่' : '', row.days, row.reason, LEAVE_STATUS_LABELS[row.status],
-            row.status_note || '', row.decided_by_name || '',
+            row.approver_name || '', row.status_note || '', row.decided_by_name || '',
         ],
     },
 };
@@ -78,6 +79,7 @@ const TABS = {
 // แท็บปัจจุบันมาจาก URL (?tab=leave) เพื่อให้เมนูด้านบนไฮไลต์ถูกอัน
 let currentTab = getParam('tab') === 'leave' ? 'leave' : 'attendance';
 let currentPage = 1;
+let currentItems = [];
 document.body.dataset.page = currentTab;
 
 const filterForm = () => document.getElementById('filters');
@@ -133,6 +135,7 @@ const loadTable = async () => {
         pagination.innerHTML = '';
         return;
     }
+    currentItems = data.items;
 
     if (data.items.length === 0) {
         setTableMessage(container, tab.emptyText);
@@ -242,23 +245,10 @@ onAppReady(async () => {
         }
 
         if (statusButton) {
-            const approve = statusButton.dataset.status === 'approved';
-            const note = window.prompt(approve ? 'หมายเหตุการอนุมัติ (ไม่บังคับ)' : 'เหตุผลที่ไม่อนุมัติ (ไม่บังคับ)', '');
-            if (note === null) return;
+            const leave = currentItems.find((row) => String(row.id) === statusButton.dataset.id);
+            if (!leave) return;
             await withBusy(statusButton, async () => {
-                try {
-                    const result = await api(`/leave_requests/${statusButton.dataset.id}/status`, {
-                        method: 'PATCH', body: { status: statusButton.dataset.status, status_note: note },
-                    });
-                    if (result.warnings && result.warnings.length > 0) {
-                        showPageMessage('warning', 'บันทึกแล้ว แต่มีข้อควรระวัง', result.warnings);
-                    } else {
-                        showPageMessage('success', result.message);
-                    }
-                    await loadTable();
-                } catch (error) {
-                    showError(error);
-                }
+                if (await recordDecision(leave, statusButton.dataset.status)) await loadTable();
             });
         }
     });
