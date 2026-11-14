@@ -3,6 +3,7 @@ const express = require('express');
 const { pool } = require('../db');
 const { getSettings, lateThreshold, loadCalendar } = require('../settings');
 const { todayStr, addDays, isWorkingDay } = require('../dates');
+const { recordMetrics } = require('../worktime');
 const { asyncHandler } = require('../http');
 
 const router = express.Router();
@@ -75,7 +76,9 @@ router.get('/', asyncHandler(async (req, res) => {
     late_after: threshold,
     active_employees: activeEmployees,
     checked_in: attendanceToday.length,
-    late: attendanceToday.filter((row) => row.time_in > threshold),
+    late: attendanceToday
+      .map((row) => ({ ...row, ...recordMetrics({ ...row, date: today }, settings, calendar) }))
+      .filter((row) => row.is_late),
     missing_out_today: attendanceToday.filter((row) => !row.time_out).length,
     missing_out_previous: missingOutPrevious,
     on_leave: onLeave.map((row) => ({ ...row, half_day: Boolean(row.half_day) })),

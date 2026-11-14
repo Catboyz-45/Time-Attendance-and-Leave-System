@@ -13,7 +13,7 @@
         <div class="page-head">
             <div>
                 <h1>นำเข้าการลงเวลาจากไฟล์</h1>
-                <div class="subtitle">รองรับไฟล์ CSV ที่ export จากเครื่องสแกนนิ้วหรือ Excel (บันทึกเป็น CSV)</div>
+                <div class="subtitle">รองรับไฟล์ Excel (.xlsx) และ CSV ที่ export จากเครื่องสแกนนิ้ว</div>
             </div>
             <div class="actions">
                 <button type="button" class="btn secondary" id="template-btn">ดาวน์โหลดไฟล์ตัวอย่าง</button>
@@ -26,8 +26,8 @@
             <h2>1. เลือกไฟล์</h2>
             <div class="form-grid">
                 <div class="field">
-                    <label for="file">ไฟล์ CSV</label>
-                    <input id="file" type="file" accept=".csv,.txt,text/csv,text/plain">
+                    <label for="file">ไฟล์ Excel (.xlsx) หรือ CSV</label>
+                    <input id="file" type="file" accept=".xlsx,.csv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
                     <span class="hint">รองรับทั้งแบบ 1 แถวต่อวัน (รหัส, วันที่, เวลาเข้า, เวลาออก) และแบบ 1 แถวต่อการสแกน 1 ครั้ง — ระบบจะใช้เวลาแรกเป็นเวลาเข้า และเวลาสุดท้ายเป็นเวลาออก</span>
                 </div>
                 <div class="field">

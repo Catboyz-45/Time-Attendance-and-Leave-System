@@ -11,9 +11,16 @@ const DEFAULT_SETTINGS = {
   work_start_time: '08:30',
   work_end_time: '17:30',
   late_grace_minutes: 0,
+  ot_min_minutes: 30, // ทำงานเกินเวลาเลิกงานอย่างน้อยกี่นาทีจึงนับเป็น OT
   work_days: [1, 2, 3, 4, 5], // 0 = อาทิตย์ ... 6 = เสาร์
   leave_quotas: { 'ลาป่วย': 30, 'ลากิจ': 3, 'ลาพักร้อน': 6 },
+  // ลาพักร้อนได้เมื่อทำงานครบกี่เดือน (กฎหมายกำหนดเมื่อทำงานครบ 1 ปี)
+  annual_leave_min_service_months: 12,
+  // วันลาพักร้อนที่ไม่ได้ใช้ สะสมไปปีถัดไปได้สูงสุดกี่วัน (0 = ไม่สะสม)
+  annual_leave_carry_over_max: 0,
 };
+
+const ANNUAL_LEAVE_TYPE = 'ลาพักร้อน';
 
 const getSettings = async (db = pool) => {
   const [rows] = await db.query('SELECT `key`, `value` FROM settings');
@@ -48,6 +55,7 @@ const loadCalendar = async (from, to, settings, db = pool) => {
 };
 
 module.exports = {
+  ANNUAL_LEAVE_TYPE,
   LEAVE_TYPES,
   LEAVE_STATUSES,
   DEFAULT_SETTINGS,

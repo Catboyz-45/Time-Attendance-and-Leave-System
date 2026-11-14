@@ -65,9 +65,14 @@
                     <div class="field">
                         <label for="late_grace_minutes">ผ่อนผันการมาสาย (นาที)</label>
                         <input id="late_grace_minutes" name="late_grace_minutes" type="number" min="0" max="240" step="1">
-                        <span class="hint">เช่น 5 = เข้างานหลัง 08:35 จึงนับว่าสาย</span>
+                        <span class="hint">เช่น 5 = เข้างานหลัง 08:35 จึงนับว่าสาย (นาทีที่สายนับจากเวลาเข้างาน)</span>
                     </div>
                     <div class="field">
+                        <label for="ot_min_minutes">OT ขั้นต่ำ (นาที)</label>
+                        <input id="ot_min_minutes" name="ot_min_minutes" type="number" min="0" max="240" step="1">
+                        <span class="hint">ทำงานเกินเวลาเลิกงานอย่างน้อยเท่านี้จึงนับเป็น OT</span>
+                    </div>
+                    <div class="field full">
                         <span class="label">วันทำงาน</span>
                         <div class="checks" id="work-days"></div>
                     </div>
@@ -75,6 +80,16 @@
                         <span class="label">โควตาวันลาต่อปี (วันทำงาน) — เว้นว่าง = ไม่จำกัด</span>
                         <div class="form-grid" id="quota-fields"></div>
                         <span class="hint">ค่าเริ่มต้นตามขั้นต่ำของ พ.ร.บ.คุ้มครองแรงงาน: ลาป่วยได้ค่าจ้าง 30 วัน, ลากิจ 3 วัน, ลาพักร้อน 6 วัน (เมื่อทำงานครบ 1 ปี) ปรับตามระเบียบบริษัทได้</span>
+                    </div>
+                    <div class="field">
+                        <label for="annual_leave_min_service_months">ลาพักร้อนได้เมื่อทำงานครบ (เดือน)</label>
+                        <input id="annual_leave_min_service_months" name="annual_leave_min_service_months" type="number" min="0" max="60" step="1">
+                        <span class="hint">นับจากวันเริ่มงานของพนักงาน ปีที่ยังไม่ครบจะได้สิทธิ์ 0 วัน</span>
+                    </div>
+                    <div class="field">
+                        <label for="annual_leave_carry_over_max">สะสมวันลาพักร้อนไปปีถัดไปได้สูงสุด (วัน)</label>
+                        <input id="annual_leave_carry_over_max" name="annual_leave_carry_over_max" type="number" min="0" max="60" step="1">
+                        <span class="hint">0 = ไม่สะสม (วันที่เหลือหมดอายุสิ้นปี)</span>
                     </div>
                 </div>
                 <div class="form-actions">
@@ -86,7 +101,10 @@
             <section class="card">
                 <div class="card-head">
                     <h2>วันหยุดนักขัตฤกษ์ / วันหยุดบริษัท</h2>
-                    <select id="holiday-year" aria-label="ปี"></select>
+                    <div class="actions">
+                        <select id="holiday-year" aria-label="ปี"></select>
+                        <button type="button" class="btn secondary" id="copy-holidays-btn">คัดลอกจากปีก่อน</button>
+                    </div>
                 </div>
                 <div id="holiday-message" class="message" role="alert"></div>
                 <form id="holiday-form" class="filters" novalidate>

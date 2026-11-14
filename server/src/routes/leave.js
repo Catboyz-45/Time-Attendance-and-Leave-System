@@ -1,12 +1,13 @@
-// คำขอลา: บันทึก, บันทึกผลอนุมัติ, นับวันลาเฉพาะวันทำงาน, เตือนเมื่อเกินโควตา (ลบแบบ soft delete)
+// คำขอลา: บันทึก, บันทึกผลอนุมัติ, นับวันลาเฉพาะวันทำงาน, เตือนเมื่อเกินสิทธิ์/ขัดกับการลงเวลา (ลบแบบ soft delete)
 // การอนุมัติเกิดนอกระบบ (หัวหน้าเซ็นใบลา) HR เป็นผู้บันทึกผล:
 //   approver_name = ผู้อนุมัติจริง, decided_by = บัญชี HR ที่บันทึกผล
 const express = require('express');
 const { pool } = require('../db');
 const { logAudit, diff } = require('../audit');
 const {
-  LEAVE_TYPES, LEAVE_STATUSES, getSettings, loadCalendar,
+  ANNUAL_LEAVE_TYPE, LEAVE_TYPES, LEAVE_STATUSES, getSettings, loadCalendar,
 } = require('../settings');
+const { computeBalances } = require('../balances');
 const { leaveDaysInRange, minDate, maxDate } = require('../dates');
 const {
   asyncHandler, badRequest, notFound, parseId, parsePagination,
@@ -42,30 +43,40 @@ const withDays = async (rows, settings) => {
   }));
 };
 
-// จำนวนวันลาที่อนุมัติแล้วของพนักงานในปีนั้น (ไม่นับรายการ excludeId)
-const approvedDaysInYear = async (employeeId, leaveType, year, settings, excludeId = 0) => {
-  const from = `${year}-01-01`;
-  const to = `${year}-12-31`;
-  const [rows] = await pool.query(
-    `SELECT start_date, end_date, half_day FROM leave_requests
-     WHERE employee_id = ? AND leave_type = ? AND status = 'approved' AND deleted_at IS NULL
-       AND start_date <= ? AND end_date >= ? AND id <> ?`,
-    [employeeId, leaveType, to, from, excludeId],
-  );
-  const calendar = await loadCalendar(from, to, settings);
-  return rows.reduce((sum, row) => sum + leaveDaysInRange(row, from, to, calendar), 0);
-};
+// คำเตือนตอนบันทึก/อนุมัติการลา (ไม่บล็อกการบันทึก แต่ให้ HR ตรวจสอบก่อน)
+const leaveWarnings = async (leave, days, settings, excludeId) => {
+  const warnings = [];
+  const [[employee]] = await pool.query('SELECT id, start_date FROM employees WHERE id = ?', [leave.employee_id]);
+  if (!employee) return warnings;
+  const year = Number(leave.start_date.slice(0, 4));
+  const info = (await computeBalances([employee], year, settings, { excludeLeaveId: excludeId })).get(employee.id);
 
-// คืนข้อความเตือนถ้าการอนุมัติครั้งนี้ทำให้วันลาเกินโควตาของปี
-const quotaWarnings = async (leave, days, settings, excludeId) => {
-  const quota = settings.leave_quotas[leave.leave_type];
-  if (leave.status !== 'approved' || quota === undefined || quota === null) return [];
-  const year = leave.start_date.slice(0, 4);
-  const used = await approvedDaysInYear(leave.employee_id, leave.leave_type, year, settings, excludeId);
-  if (used + days > quota) {
-    return [`${leave.leave_type}ปี ${year} รวมเป็น ${used + days} วัน เกินโควตา ${quota} วัน`];
+  // ลาพักร้อนก่อนทำงานครบตามเงื่อนไข
+  if (leave.leave_type === ANNUAL_LEAVE_TYPE && info.eligible_from && leave.start_date < info.eligible_from) {
+    warnings.push(`พนักงานยังทำงานไม่ครบ ${settings.annual_leave_min_service_months} เดือน `
+      + `(มีสิทธิ์ลาพักร้อนตั้งแต่ ${info.eligible_from})`);
   }
-  return [];
+
+  // ลาเกินสิทธิ์ของปี (ตรวจเมื่ออนุมัติ)
+  const balance = info.balances[leave.leave_type];
+  if (leave.status === 'approved' && balance && balance.remaining !== null && balance.remaining - days < 0) {
+    warnings.push(`${leave.leave_type}ปี ${year} จะใช้รวม ${balance.used + days} วัน `
+      + `เกินสิทธิ์ ${balance.quota + balance.carried} วัน`);
+  }
+
+  // มีการลงเวลาทำงานในวันที่ลาเต็มวัน
+  if (leave.status !== 'rejected' && !Number(leave.half_day)) {
+    const [rows] = await pool.query(
+      `SELECT date FROM attendance WHERE employee_id = ? AND deleted_at IS NULL AND date BETWEEN ? AND ?
+       ORDER BY date`,
+      [leave.employee_id, leave.start_date, leave.end_date],
+    );
+    if (rows.length > 0) {
+      warnings.push(`มีการลงเวลาทำงานในช่วงที่ลาแล้ว ${rows.length} วัน (${rows.map((row) => row.date).join(', ')}) `
+        + 'กรุณาตรวจสอบว่าลาจริงหรือมาทำงาน');
+    }
+  }
+  return warnings;
 };
 
 // เมื่อบันทึกผลว่าอนุมัติ/ไม่อนุมัติ ต้องระบุว่าใครเป็นผู้อนุมัติจริง (HR เป็นแค่ผู้บันทึก)
@@ -218,7 +229,7 @@ router.post('/', asyncHandler(async (req, res) => {
   const { errors, data, days } = await validateLeave(req.body, settings);
   if (errors.length > 0) throw badRequest(errors);
 
-  const warnings = await quotaWarnings(data, days, settings, 0);
+  const warnings = await leaveWarnings(data, days, settings, 0);
   const [result] = await pool.query('INSERT INTO leave_requests SET ?', [{
     ...data,
     ...decisionFields(data.status, 'pending', req.user.id),
@@ -240,7 +251,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
   const { errors, data, days } = await validateLeave(req.body, settings, id);
   if (errors.length > 0) throw badRequest(errors);
 
-  const warnings = await quotaWarnings(data, days, settings, id);
+  const warnings = await leaveWarnings(data, days, settings, id);
   await pool.query('UPDATE leave_requests SET ? WHERE id = ? AND deleted_at IS NULL', [{
     ...data,
     ...decisionFields(data.status, before.status, req.user.id),
@@ -273,7 +284,7 @@ router.patch('/:id/status', asyncHandler(async (req, res) => {
     if (check.errors.length > 0) throw badRequest(check.errors);
   }
 
-  const warnings = await quotaWarnings({ ...before, status }, before.days, settings, id);
+  const warnings = await leaveWarnings({ ...before, status }, before.days, settings, id);
   await pool.query('UPDATE leave_requests SET ? WHERE id = ?', [{
     status,
     status_note: statusNote,

@@ -1,0 +1,3 @@
+#!/bin/bash
+# คำสั่งย่อสำหรับใช้ในคอนเทนเนอร์ backup:  docker compose exec backup backup now
+exec bash /scripts/docker-backup.sh "$@"

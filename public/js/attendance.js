@@ -62,14 +62,23 @@ onAppReady(async () => {
         await withBusy(document.getElementById('submit-btn'), async () => {
             try {
                 if (id) {
-                    await api(`/attendance/${encodeURIComponent(id)}`, { method: 'PUT', body: data });
-                    setFlash('success', 'แก้ไขข้อมูลการลงเวลาเรียบร้อย');
+                    const result = await api(`/attendance/${encodeURIComponent(id)}`, { method: 'PUT', body: data });
+                    if (result.warnings && result.warnings.length > 0) {
+                        setFlash('warning', 'แก้ไขข้อมูลการลงเวลาเรียบร้อย แต่มีข้อควรตรวจสอบ', result.warnings);
+                    } else {
+                        setFlash('success', 'แก้ไขข้อมูลการลงเวลาเรียบร้อย');
+                    }
                     window.location.href = 'history.html?tab=attendance';
                     return;
                 }
-                await api('/attendance', { method: 'POST', body: data });
+                const result = await api('/attendance', { method: 'POST', body: data });
                 const employee = employees.find((row) => String(row.id) === data.employee_id);
-                showMessage(messageDom, 'success', `บันทึกการลงเวลาของ ${employee ? employeeLabel(employee) : ''} เรียบร้อย`);
+                const text = `บันทึกการลงเวลาของ ${employee ? employeeLabel(employee) : ''} เรียบร้อย`;
+                if (result.warnings && result.warnings.length > 0) {
+                    showMessage(messageDom, 'warning', `${text} แต่มีข้อควรตรวจสอบ`, result.warnings);
+                } else {
+                    showMessage(messageDom, 'success', text);
+                }
                 // พร้อมกรอกคนถัดไป (เก็บวันที่ไว้)
                 form.elements.employee_id.value = '';
                 form.elements.time_in.value = '';

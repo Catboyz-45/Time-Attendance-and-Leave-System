@@ -228,6 +228,18 @@ const formatTime = (timeString) => (timeString ? timeString.slice(0, 5) : '-');
 // 'YYYY-MM' -> 'เมษายน 2568'
 const formatThaiMonth = (month) => formatThaiDate(`${month}-01`, { month: 'long', year: 'numeric' });
 
+// นาที -> '45 นาที' หรือ '1 ชม. 30 นาที'
+const formatMinutes = (minutes) => {
+    const value = Math.round(Number(minutes) || 0);
+    if (value < 60) return `${value} นาที`;
+    const hours = Math.floor(value / 60);
+    const rest = value % 60;
+    return rest ? `${hours} ชม. ${rest} นาที` : `${hours} ชม.`;
+};
+
+// นาที -> ชั่วโมงทศนิยม 2 ตำแหน่ง (สำหรับรายงานเงินเดือน เช่น 90 -> 1.50)
+const minutesToHours = (minutes) => (Math.round((Number(minutes) || 0) / 60 * 100) / 100).toFixed(2);
+
 const formatDays = (value) => {
     if (value === null || value === undefined) return '-';
     return Number.isInteger(value) ? String(value) : value.toFixed(1);
@@ -416,23 +428,34 @@ const recordDecision = async (leave, status) => {
 
 // ===================== ส่งใบลาให้หัวหน้า: ข้อความสำหรับ LINE และสิทธิ์วันลา =====================
 
+// สิทธิ์วันลาทั้งหมดของปี = โควตา + วันลาพักร้อนสะสมจากปีก่อน (null = ไม่จำกัด)
+const entitlement = (balance) => (balance.quota === null ? null : balance.quota + (balance.carried || 0));
+
 // สิทธิ์วันลาทุกประเภทของพนักงานในปีที่ลา โดยไม่นับใบลานี้เอง (ถ้าอนุมัติไปแล้ว)
-// คืนค่า { year, rows: [{ type, quota, used, remaining, thisLeave, after }] }
+// คืนค่า { year, eligible_from, rows: [{ type, quota, carried, entitled, used, remaining, thisLeave, after }] }
 const leaveBalanceFor = async (leave) => {
     const year = leave.start_date.slice(0, 4);
     const data = await api('/reports/leave-balance', { query: { year, employee_id: leave.employee_id } });
-    const balances = data.rows[0] ? data.rows[0].balances : {};
+    const info = data.rows[0] || { balances: {} };
     const rows = data.leave_types.map((type) => {
-        const balance = balances[type] || { quota: null, used: 0 };
+        const balance = info.balances[type] || { quota: null, carried: 0, used: 0 };
         const isThisType = type === leave.leave_type;
         const used = balance.used - (isThisType && leave.status === 'approved' ? leave.days : 0);
-        const remaining = balance.quota === null ? null : balance.quota - used;
+        const entitled = entitlement(balance);
+        const remaining = entitled === null ? null : entitled - used;
         const thisLeave = isThisType ? leave.days : 0;
         return {
-            type, quota: balance.quota, used, remaining, thisLeave, after: remaining === null ? null : remaining - thisLeave,
+            type,
+            quota: balance.quota,
+            carried: balance.carried || 0,
+            entitled,
+            used,
+            remaining,
+            thisLeave,
+            after: remaining === null ? null : remaining - thisLeave,
         };
     });
-    return { year: Number(year), rows };
+    return { year: Number(year), eligible_from: info.eligible_from || null, rows };
 };
 
 // ข้อความสรุปใบลา สำหรับวางส่งหัวหน้าใน LINE / อีเมล

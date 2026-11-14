@@ -1,4 +1,4 @@
-// รายงาน: สรุปรายเดือน (มาทำงาน/สาย/ขาด/ลา) และวันลาคงเหลือรายปี
+// รายงาน: สรุปรายเดือน (มาทำงาน/สาย/ขาด/OT/ลา) และวันลาคงเหลือรายปี
 const express = require('express');
 const { pool } = require('../db');
 const {
@@ -7,6 +7,8 @@ const {
 const {
   todayStr, monthRange, eachDate, isWorkingDay, countWorkingDays, leaveDaysInRange, maxDate, minDate,
 } = require('../dates');
+const { recordMetrics } = require('../worktime');
+const { computeBalances } = require('../balances');
 const { asyncHandler } = require('../http');
 const { isFilled, isValidMonth, isPositiveInt } = require('../validate');
 
@@ -36,7 +38,6 @@ router.get('/monthly', asyncHandler(async (req, res) => {
   const month = isValidMonth(req.query.month) ? req.query.month : today.slice(0, 7);
   const { from, to } = monthRange(month);
   const settings = await getSettings();
-  const threshold = lateThreshold(settings);
   const calendar = await loadCalendar(from, to, settings);
   // นับวันขาดงานถึงแค่วันนี้ (วันที่ยังมาไม่ถึงยังไม่ถือว่าขาด)
   const countUntil = minDate(to, today);
@@ -48,7 +49,7 @@ router.get('/monthly', asyncHandler(async (req, res) => {
     params.push(String(req.query.department));
   }
 
-  // พนักงานที่ยังทำงานอยู่ในเดือนนั้น หรือมีข้อมูลในเดือนนั้น (รวมคนที่ลาออกไปแล้ว)
+  // พนักงานที่ทำงานอยู่ในเดือนนั้น หรือมีข้อมูลในเดือนนั้น (รวมคนที่ลาออกไปแล้ว)
   const [employees] = await pool.query(
     `SELECT e.* FROM employees e
      WHERE ((e.active = 1 AND COALESCE(e.start_date, DATE(e.created_at)) <= ?)
@@ -79,7 +80,7 @@ router.get('/monthly', asyncHandler(async (req, res) => {
     // นับวันทำงาน/ขาดงานตั้งแต่วันเริ่มงาน (ถ้าไม่ได้กรอก ใช้วันที่เพิ่มพนักงานเข้าระบบ)
     const firstDay = maxDate(from, employee.start_date || String(employee.created_at).slice(0, 10));
 
-    // วันลาแยกตามประเภท และสัดส่วนวันที่ลาในแต่ละวัน (1 หรือ 0.5)
+    // วันลาแยกตามประเภท และสัดส่วนที่ลาในแต่ละวัน (1 หรือ 0.5)
     const leaveDays = Object.fromEntries(LEAVE_TYPES.map((type) => [type, 0]));
     const leaveCoverage = new Map();
     for (const leave of employeeLeaves) {
@@ -87,6 +88,41 @@ router.get('/monthly', asyncHandler(async (req, res) => {
       for (const date of eachDate(maxDate(leave.start_date, from), minDate(leave.end_date, to))) {
         leaveCoverage.set(date, Math.min(1, (leaveCoverage.get(date) || 0) + (leave.half_day ? 0.5 : 1)));
       }
+    }
+
+    // สรุปเวลาทำงานจากการลงเวลาแต่ละวัน
+    const totals = {
+      present_days: 0,
+      late_days: 0,
+      late_minutes: 0,
+      early_leave_days: 0,
+      early_minutes: 0,
+      ot_minutes: 0,
+      holiday_work_days: 0,
+      holiday_minutes: 0,
+      missing_out_days: 0,
+      conflict_days: 0,
+    };
+    for (const record of records) {
+      const metrics = recordMetrics(record, settings, calendar);
+      if (!record.time_out && record.date < today) totals.missing_out_days += 1;
+      if (metrics.day_type !== 'workday') {
+        totals.holiday_work_days += 1;
+        totals.holiday_minutes += metrics.holiday_minutes;
+        continue;
+      }
+      totals.present_days += 1;
+      if (metrics.is_late) {
+        totals.late_days += 1;
+        totals.late_minutes += metrics.late_minutes;
+      }
+      if (metrics.early_minutes > 0) {
+        totals.early_leave_days += 1;
+        totals.early_minutes += metrics.early_minutes;
+      }
+      totals.ot_minutes += metrics.ot_minutes;
+      // มีทั้งการลงเวลาและการลาเต็มวันที่อนุมัติแล้วในวันเดียวกัน (ข้อมูลขัดกัน)
+      if ((leaveCoverage.get(record.date) || 0) >= 1) totals.conflict_days += 1;
     }
 
     let absentDays = 0;
@@ -101,9 +137,7 @@ router.get('/monthly', asyncHandler(async (req, res) => {
     return {
       ...employeeInfo(employee),
       working_days: firstDay <= to ? countWorkingDays(firstDay, to, calendar) : 0,
-      present_days: records.length,
-      late_days: records.filter((row) => row.time_in > threshold).length,
-      missing_out_days: records.filter((row) => !row.time_out && row.date < today).length,
+      ...totals,
       absent_days: absentDays,
       leave_days: leaveDays,
       total_leave_days: Object.values(leaveDays).reduce((sum, days) => sum + days, 0),
@@ -115,66 +149,47 @@ router.get('/monthly', asyncHandler(async (req, res) => {
     from,
     to,
     working_days: countWorkingDays(from, to, calendar),
-    late_after: threshold,
+    late_after: lateThreshold(settings),
+    work_start_time: settings.work_start_time,
+    work_end_time: settings.work_end_time,
+    ot_min_minutes: settings.ot_min_minutes,
     leave_types: LEAVE_TYPES,
     holidays: [...calendar.holidays.entries()].map(([date, name]) => ({ date, name })),
     rows,
   });
 }));
 
-// GET /api/reports/leave-balance?year=YYYY&department=...
+// GET /api/reports/leave-balance?year=YYYY&department=...&employee_id=...
 router.get('/leave-balance', asyncHandler(async (req, res) => {
-  const year = /^\d{4}$/.test(String(req.query.year)) ? req.query.year : todayStr().slice(0, 4);
-  const from = `${year}-01-01`;
-  const to = `${year}-12-31`;
+  const year = /^\d{4}$/.test(String(req.query.year)) ? Number(req.query.year) : Number(todayStr().slice(0, 4));
   const settings = await getSettings();
-  const calendar = await loadCalendar(from, to, settings);
 
   const params = [];
-  let departmentSql = '';
+  let where = 'active = 1';
+  if (isPositiveInt(req.query.employee_id)) {
+    where = 'id = ?';
+    params.push(Number(req.query.employee_id));
+  }
   if (isFilled(req.query.department)) {
-    departmentSql = 'AND department = ?';
+    where += ' AND department = ?';
     params.push(String(req.query.department));
   }
-  let employeeSql = 'active = 1';
-  if (isPositiveInt(req.query.employee_id)) {
-    employeeSql = 'id = ?';
-    params.unshift(Number(req.query.employee_id));
-  }
-  const [employees] = await pool.query(
-    `SELECT * FROM employees WHERE ${employeeSql} ${departmentSql} ORDER BY employee_code`,
-    params,
-  );
-  const [leaves] = await pool.query(
-    `SELECT employee_id, leave_type, start_date, end_date, half_day, status FROM leave_requests
-     WHERE deleted_at IS NULL AND status <> 'rejected' AND start_date <= ? AND end_date >= ?`,
-    [to, from],
-  );
-  const leavesByEmployee = groupBy(leaves, 'employee_id');
+  const [employees] = await pool.query(`SELECT * FROM employees WHERE ${where} ORDER BY employee_code`, params);
+  const balances = await computeBalances(employees, year, settings);
 
-  const rows = employees.map((employee) => {
-    const balances = {};
-    for (const type of LEAVE_TYPES) {
-      const quota = settings.leave_quotas[type] ?? null;
-      balances[type] = {
-        quota, used: 0, pending: 0, remaining: quota,
-      };
-    }
-    for (const leave of leavesByEmployee.get(employee.id) || []) {
-      const days = leaveDaysInRange(leave, from, to, calendar);
-      const balance = balances[leave.leave_type];
-      if (!balance) continue;
-      if (leave.status === 'approved') balance.used += days;
-      else balance.pending += days;
-    }
-    for (const balance of Object.values(balances)) {
-      if (balance.quota !== null) balance.remaining = balance.quota - balance.used;
-    }
-    return { ...employeeInfo(employee), balances };
-  });
+  const rows = employees.map((employee) => ({
+    ...employeeInfo(employee),
+    start_date: employee.start_date,
+    ...balances.get(employee.id),
+  }));
 
   res.json({
-    year: Number(year), leave_types: LEAVE_TYPES, quotas: settings.leave_quotas, rows,
+    year,
+    leave_types: LEAVE_TYPES,
+    quotas: settings.leave_quotas,
+    annual_leave_min_service_months: settings.annual_leave_min_service_months,
+    annual_leave_carry_over_max: settings.annual_leave_carry_over_max,
+    rows,
   });
 }));
 

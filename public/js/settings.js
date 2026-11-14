@@ -65,6 +65,9 @@ const setupWorkForm = async (user) => {
         work_start_time: settings.work_start_time,
         work_end_time: settings.work_end_time,
         late_grace_minutes: settings.late_grace_minutes,
+        ot_min_minutes: settings.ot_min_minutes,
+        annual_leave_min_service_months: settings.annual_leave_min_service_months,
+        annual_leave_carry_over_max: settings.annual_leave_carry_over_max,
     });
 
     document.getElementById('work-readonly-note').classList.toggle('hidden', isAdmin);
@@ -81,6 +84,9 @@ const setupWorkForm = async (user) => {
             work_start_time: form.elements.work_start_time.value,
             work_end_time: form.elements.work_end_time.value,
             late_grace_minutes: Number(form.elements.late_grace_minutes.value || 0),
+            ot_min_minutes: Number(form.elements.ot_min_minutes.value || 0),
+            annual_leave_min_service_months: Number(form.elements.annual_leave_min_service_months.value || 0),
+            annual_leave_carry_over_max: Number(form.elements.annual_leave_carry_over_max.value || 0),
             work_days: Array.from(form.querySelectorAll('[data-day]:checked')).map((input) => Number(input.dataset.day)),
             leave_quotas: Object.fromEntries(Array.from(form.querySelectorAll('[data-quota]'))
                 .filter((input) => input.value !== '')
@@ -124,6 +130,77 @@ const loadHolidays = async () => {
         </div>`;
 };
 
+// วันหยุดที่วันที่เปลี่ยนทุกปี (ตามจันทรคติ หรือวันหยุดชดเชย) ไม่เลือกให้โดยอัตโนมัติ
+const MOVABLE_HOLIDAY = /บูชา|พรรษา|ชดเชย|ตรุษจีน|พิเศษ/;
+
+// คัดลอกวันหยุดจากปีก่อนมาปีที่เลือก: แสดงรายการให้ติ๊กเลือกก่อนเพิ่ม
+const copyHolidaysFromPreviousYear = async (targetYear) => {
+    const source = await api('/holidays', { query: { year: targetYear - 1 } });
+    const existing = await api('/holidays', { query: { year: targetYear } });
+    const existingDates = new Set(existing.items.map((item) => item.date));
+    const messageDom = document.getElementById('holiday-message');
+
+    if (source.items.length === 0) {
+        showMessage(messageDom, 'warning', `ปี ${targetYear - 1 + 543} ยังไม่มีวันหยุดให้คัดลอก`);
+        return false;
+    }
+
+    const candidates = source.items.map((item) => {
+        const date = `${targetYear}${item.date.slice(4)}`;
+        const valid = !Number.isNaN(new Date(`${date}T00:00:00Z`).getTime()) && new Date(`${date}T00:00:00Z`).toISOString().startsWith(date);
+        return {
+            date, name: item.name, valid, exists: existingDates.has(date), movable: MOVABLE_HOLIDAY.test(item.name),
+        };
+    });
+
+    const dialog = document.createElement('dialog');
+    dialog.className = 'dialog';
+    dialog.innerHTML = `
+        <form method="dialog">
+            <h2>คัดลอกวันหยุดจากปี ${targetYear - 1 + 543}</h2>
+            <p class="small muted">วันหยุดตามจันทรคติ (เช่น มาฆบูชา วิสาขบูชา) และวันหยุดชดเชยเปลี่ยนทุกปี จึงไม่ได้เลือกไว้
+                กรุณาตรวจสอบกับประกาศของปี ${targetYear + 543} แล้วเพิ่มเอง</p>
+            <div class="copy-list">${candidates.map((item, index) => `
+                <label class="checkbox ${item.exists || !item.valid ? 'muted' : ''}">
+                    <input type="checkbox" data-index="${index}" ${item.exists || !item.valid ? 'disabled' : (item.movable ? '' : 'checked')}>
+                    ${escapeHtml(formatThaiDate(item.date))} · ${escapeHtml(item.name)}
+                    ${item.exists ? '<span class="badge">มีแล้ว</span>' : ''}
+                    ${item.movable && !item.exists ? '<span class="badge pending">วันที่เปลี่ยนทุกปี</span>' : ''}
+                </label>`).join('')}
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn secondary" data-role="cancel">ยกเลิก</button>
+                <button type="submit" class="btn" value="ok">เพิ่มวันที่เลือก</button>
+            </div>
+        </form>`;
+    document.body.appendChild(dialog);
+
+    const selected = await new Promise((resolve) => {
+        let result = null;
+        dialog.querySelector('form').addEventListener('submit', () => {
+            result = Array.from(dialog.querySelectorAll('input[data-index]:checked'))
+                .map((input) => candidates[Number(input.dataset.index)]);
+        });
+        dialog.querySelector('[data-role=cancel]').addEventListener('click', () => dialog.close());
+        dialog.addEventListener('close', () => {
+            dialog.remove();
+            resolve(result);
+        });
+        dialog.showModal();
+    });
+
+    if (!selected) return false;
+    if (selected.length === 0) {
+        showMessage(messageDom, 'warning', 'ไม่ได้เลือกวันหยุด');
+        return false;
+    }
+    const result = await api('/holidays/bulk', {
+        method: 'POST', body: { items: selected.map(({ date, name }) => ({ date, name })) },
+    });
+    showMessage(messageDom, 'success', `${result.message} อย่าลืมเพิ่มวันหยุดตามจันทรคติและวันหยุดชดเชยของปี ${targetYear + 543}`);
+    return true;
+};
+
 const setupHolidays = async () => {
     const yearSelect = document.getElementById('holiday-year');
     const thisYear = Number(todayStr().slice(0, 4));
@@ -148,6 +225,16 @@ const setupHolidays = async () => {
                 form.reset();
                 yearSelect.value = data.date.slice(0, 4);
                 await loadHolidays();
+            } catch (error) {
+                showError(error, messageDom);
+            }
+        });
+    });
+
+    document.getElementById('copy-holidays-btn').addEventListener('click', async (event) => {
+        await withBusy(event.currentTarget, async () => {
+            try {
+                if (await copyHolidaysFromPreviousYear(Number(yearSelect.value))) await loadHolidays();
             } catch (error) {
                 showError(error, messageDom);
             }

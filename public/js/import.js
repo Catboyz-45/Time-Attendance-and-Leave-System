@@ -24,6 +24,30 @@ const readFileText = async (file) => {
     }
 };
 
+// ไฟล์ Excel (.xlsx): ส่งให้เซิร์ฟเวอร์อ่าน แล้วได้ตารางกลับมาเหมือนไฟล์ CSV
+const readExcelTable = async (file) => {
+    let response;
+    try {
+        response = await fetch('/api/import/parse-xlsx', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: file,
+        });
+    } catch {
+        throw new ApiError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 0);
+    }
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+        redirectToLogin();
+        throw new ApiError('กรุณาเข้าสู่ระบบ', 401);
+    }
+    if (!response.ok) {
+        throw new ApiError(data.message || 'อ่านไฟล์ Excel ไม่สำเร็จ', response.status, data.errors || []);
+    }
+    return data.rows;
+};
+
 // เดาตัวคั่นจากบรรทัดแรก (, ; หรือ tab)
 const detectDelimiter = (text) => {
     const firstLine = text.split(/\r?\n/, 1)[0] || '';
@@ -284,10 +308,18 @@ onAppReady(async () => {
     fileInput.addEventListener('change', async () => {
         const file = fileInput.files[0];
         if (!file) return;
+        if (/\.xls$/i.test(file.name)) {
+            showPageMessage('danger', 'ไฟล์ .xls รุ่นเก่ายังไม่รองรับ กรุณาเปิดใน Excel แล้วบันทึกเป็น .xlsx หรือ CSV');
+            return;
+        }
         try {
-            const text = await readFileText(file);
+            if (/\.xlsx$/i.test(file.name)) {
+                state.table = await readExcelTable(file);
+            } else {
+                const text = await readFileText(file);
+                state.table = parseCsv(text, detectDelimiter(text));
+            }
             state.fileName = file.name;
-            state.table = parseCsv(text, detectDelimiter(text));
             if (state.table.length === 0) {
                 showPageMessage('danger', 'ไฟล์ว่างหรืออ่านไม่ได้');
                 return;
@@ -297,7 +329,7 @@ onAppReady(async () => {
             hideMessage(document.getElementById('page-message'));
             showMapping();
         } catch (error) {
-            showPageMessage('danger', `อ่านไฟล์ไม่สำเร็จ: ${error.message}`);
+            showPageMessage('danger', `อ่านไฟล์ไม่สำเร็จ: ${error.message}`, error.errors || []);
         }
     });
 

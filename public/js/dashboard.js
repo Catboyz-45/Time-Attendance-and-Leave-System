@@ -101,7 +101,7 @@ const load = async () => {
                 <div>${escapeHtml(employeeLabel(row))}</div>
                 <div class="sub">${escapeHtml(row.department || '')}</div>
             </div>
-            <span class="badge late">เข้างาน ${escapeHtml(formatTime(row.time_in))}</span>
+            <span class="badge late">เข้างาน ${escapeHtml(formatTime(row.time_in))} · สาย ${escapeHtml(formatMinutes(row.late_minutes))}</span>
         </li>`);
 
     const missing = data.not_checked_in;

@@ -3,7 +3,7 @@
 
 const PAGE_SIZE = 50;
 const FILTER_KEYS = {
-    attendance: ['q', 'employee_id', 'department', 'from', 'to', 'late', 'missing_out'],
+    attendance: ['q', 'employee_id', 'department', 'from', 'to', 'late', 'missing_out', 'conflict'],
     leave: ['q', 'employee_id', 'department', 'from', 'to', 'status', 'leave_type'],
 };
 
@@ -17,23 +17,33 @@ const TABS = {
         headers: ['วันที่', 'รหัส', 'ชื่อ-สกุล', 'แผนก', 'เข้างาน', 'ออกงาน', 'หมายเหตุ', ''],
         row: (row) => `
             <tr>
-                <td class="nowrap">${escapeHtml(formatThaiDate(row.date))}</td>
+                <td class="nowrap">${escapeHtml(formatThaiDate(row.date))}
+                    ${row.day_type === 'holiday' ? '<div><span class="badge">วันหยุด</span></div>' : ''}
+                    ${row.day_type === 'weekend' ? '<div><span class="badge">วันหยุดสัปดาห์</span></div>' : ''}</td>
                 <td class="nowrap">${escapeHtml(row.employee_code)}</td>
                 <td>${escapeHtml(employeeName(row))}</td>
                 <td>${escapeHtml(row.department || '-')}</td>
-                <td class="nowrap">${escapeHtml(formatTime(row.time_in))} ${row.is_late ? '<span class="badge late">สาย</span>' : ''}</td>
-                <td class="nowrap">${row.time_out ? escapeHtml(formatTime(row.time_out)) : '<span class="badge pending">ยังไม่ลง</span>'}</td>
-                <td>${escapeHtml(row.note || '')} ${row.source === 'import' ? '<span class="badge">นำเข้า</span>' : ''}</td>
+                <td class="nowrap">${escapeHtml(formatTime(row.time_in))}
+                    ${row.is_late ? `<div><span class="badge late">สาย ${escapeHtml(formatMinutes(row.late_minutes))}</span></div>` : ''}</td>
+                <td class="nowrap">${row.time_out ? escapeHtml(formatTime(row.time_out)) : '<span class="badge pending">ยังไม่ลง</span>'}
+                    ${row.early_minutes ? `<div><span class="badge pending">ออกก่อน ${escapeHtml(formatMinutes(row.early_minutes))}</span></div>` : ''}
+                    ${row.ot_minutes ? `<div><span class="badge update">OT ${escapeHtml(formatMinutes(row.ot_minutes))}</span></div>` : ''}
+                    ${row.holiday_minutes ? `<div><span class="badge update">ทำงาน ${escapeHtml(formatMinutes(row.holiday_minutes))}</span></div>` : ''}</td>
+                <td>${escapeHtml(row.note || '')} ${row.source === 'import' ? '<span class="badge">นำเข้า</span>' : ''}
+                    ${row.on_leave ? '<div><span class="badge error" title="วันนี้มีใบลาเต็มวันที่อนุมัติแล้ว">ขัดกับใบลา</span></div>' : ''}</td>
                 <td class="actions-cell">
                     <a class="btn secondary sm" href="attendance.html?id=${encodeURIComponent(row.id)}">แก้ไข</a>
                     <button type="button" class="btn danger sm" data-delete="${escapeHtml(row.id)}"
                         data-label="${escapeHtml(`${employeeLabel(row)} วันที่ ${formatThaiDate(row.date)}`)}">ลบ</button>
                 </td>
             </tr>`,
-        csvHeaders: ['วันที่', 'รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'แผนก', 'เวลาเข้างาน', 'เวลาออกงาน', 'มาสาย', 'หมายเหตุ', 'ที่มา'],
+        csvHeaders: ['วันที่', 'ประเภทวัน', 'รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'แผนก', 'เวลาเข้างาน', 'เวลาออกงาน',
+            'สาย (นาที)', 'ออกก่อน (นาที)', 'OT (นาที)', 'ทำงานวันหยุด (นาที)', 'ขัดกับใบลา', 'หมายเหตุ', 'ที่มา'],
         csvRow: (row) => [
-            row.date, row.employee_code, row.first_name, row.last_name, row.department || '',
-            formatTime(row.time_in), row.time_out ? formatTime(row.time_out) : '', row.is_late ? 'สาย' : '',
+            row.date, { workday: 'วันทำงาน', weekend: 'วันหยุดสัปดาห์', holiday: 'วันหยุด' }[row.day_type] || '',
+            row.employee_code, row.first_name, row.last_name, row.department || '',
+            formatTime(row.time_in), row.time_out ? formatTime(row.time_out) : '',
+            row.late_minutes, row.early_minutes, row.ot_minutes, row.holiday_minutes, row.on_leave ? 'ใช่' : '',
             row.note || '', row.source === 'import' ? 'นำเข้า' : 'บันทึกเอง',
         ],
     },
@@ -199,6 +209,7 @@ onAppReady(async () => {
         leave_type: params.get('leave_type') || '',
         late: params.get('late') === '1',
         missing_out: params.get('missing_out') === '1',
+        conflict: params.get('conflict') === '1',
     });
     currentPage = Number(params.get('page')) || 1;
 

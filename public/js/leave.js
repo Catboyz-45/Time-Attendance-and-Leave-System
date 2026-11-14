@@ -41,12 +41,20 @@ const updateBalanceHint = async (form, excludeLeave) => {
         const used = balance.used - (excludeLeave && excludeLeave.status === 'approved' && excludeLeave.leave_type === type
             && excludeLeave.start_date.slice(0, 4) === year ? excludeLeave.days : 0);
         const pending = balance.pending > 0 ? ` · รออนุมัติ ${formatDays(balance.pending)} วัน` : '';
-        if (balance.quota === null) {
+        const entitled = entitlement(balance);
+        const eligibleFrom = data.rows[0].eligible_from;
+        if (entitled === null) {
             hint.textContent = `ปี ${Number(year) + 543}: ใช้ไปแล้ว ${formatDays(used)} วัน (ไม่จำกัดโควตา)${pending}`;
         } else {
-            const remaining = balance.quota - used;
-            hint.innerHTML = `ปี ${Number(year) + 543}: ใช้ไป ${formatDays(used)} จาก ${formatDays(balance.quota)} วัน · `
+            const remaining = entitled - used;
+            const carried = balance.carried ? ` (รวมสะสมจากปีก่อน ${formatDays(balance.carried)} วัน)` : '';
+            hint.innerHTML = `ปี ${Number(year) + 543}: ใช้ไป ${formatDays(used)} จาก ${formatDays(entitled)} วัน${escapeHtml(carried)} · `
                 + `<span class="${remaining < 0 ? 'negative' : ''}">คงเหลือ ${formatDays(remaining)} วัน</span>${escapeHtml(pending)}`;
+        }
+        // ลาพักร้อนก่อนทำงานครบตามเงื่อนไข
+        const start = form.elements.start_date.value;
+        if (type === 'ลาพักร้อน' && eligibleFrom && (!start || start < eligibleFrom)) {
+            hint.insertAdjacentHTML('beforeend', `<br><span class="negative">มีสิทธิ์ลาพักร้อนตั้งแต่ ${escapeHtml(formatThaiDate(eligibleFrom))}</span>`);
         }
     } catch (error) {
         hint.textContent = 'โหลดข้อมูลวันลาไม่สำเร็จ';
@@ -78,6 +86,7 @@ onAppReady(async () => {
         updateBalanceHint(form, existing);
     });
     form.elements.end_date.addEventListener('change', syncHalfDay);
+    form.elements.start_date.addEventListener('input', () => updateBalanceHint(form, existing));
     form.elements.employee_id.addEventListener('change', () => updateBalanceHint(form, existing));
     form.elements.leave_type.addEventListener('change', () => updateBalanceHint(form, existing));
     form.elements.status.addEventListener('change', () => syncApproverField(form));

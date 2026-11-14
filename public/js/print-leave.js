@@ -56,7 +56,7 @@ const renderSheet = (leave, balance, settings) => {
                 <tbody>${balance.rows.map((row) => `
                     <tr>
                         <td>${escapeHtml(row.type)}</td>
-                        <td>${row.quota === null ? 'ไม่จำกัด' : formatDays(row.quota)}</td>
+                        <td>${row.entitled === null ? 'ไม่จำกัด' : formatDays(row.entitled)}${row.carried ? ` <small>(สะสม ${formatDays(row.carried)})</small>` : ''}</td>
                         <td>${formatDays(row.used)}</td>
                         <td>${row.thisLeave ? formatDays(row.thisLeave) : '-'}</td>
                         <td>${row.after === null ? '-' : formatDays(row.after)}</td>

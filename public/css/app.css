@@ -666,6 +666,16 @@ table.data tr.inactive td {
     margin-top: 12px;
 }
 
+.copy-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 50vh;
+    overflow-y: auto;
+    margin-top: 12px;
+    padding: 4px 2px;
+}
+
 .approver {
     font-size: 13px;
     color: var(--muted);
